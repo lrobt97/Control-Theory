@@ -8,7 +8,7 @@ var id = "control_theory";
 var name = "Control Theory";
 var description = "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n In this theory, you will be attempting to do the opposite - cause as much disturbance in the variable 'T' as possible while a controller attempts to stabilise the value to the set point. \n \n The controller works by calculating the error, e(t) between T and the set point, T_sp. The controller used in this theory will be a PID -- proportional, integral and derivative controller. K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. The integral term sums up the past errors and attempts to minimise the error after t_i seconds. The derivative term attempts to predict the future error after t_d seconds based on the current derivative of e(t). \n \n For this example, you will assume that this is a heating controller system. The PID controller will adjust the heater so that T reaches the set point. For the purpose of the simulation, u(t) will be considered as a percentage change, in the real world this would correspond to opening a valve to allow heating/cooling fluid to change the temperature. \n \n To make progress, you will need to disturb T to change rho, however going over a certain threshold will reset your progress. At some point you will also be able to manually change the values k_p, t_i, t_d to explore the system more deeply and to improve rho gain.";
 var authors = "Gaunter";
-var version = 1;
+var version = 1.1;
 
 // debug variable
 var debug = 0;
@@ -208,7 +208,7 @@ var tick = (elapsedTime, multiplier) => {
   }
 
   if (T > getTmax(Tmax.level)) {
-    //resetStage();
+    resetStage();
   }
 
   prevError = error;
