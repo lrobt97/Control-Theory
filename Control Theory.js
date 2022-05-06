@@ -183,7 +183,7 @@ var tick = (elapsedTime, multiplier) => {
   }
 
   let dT = 0;
-  log(output);
+  log(autoKickerEnabled);
   valve = valveTarget + (valve - valveTarget)*BigNumber.E.pow(-dt);
   let prevT = T;
   if (valve > 0) {
@@ -310,9 +310,9 @@ const createAutoKickerMenu = () => {
           onTextChanged: (_, text) => frequency = parseFloat(text),
         }),
         ui.createLabel({ text: "On/Off" }),
-        ui.createCheckBox({
-          isChecked: autoKickerEnabled,
-          onCheckedChanged: () => autoKickerEnabled = !autoKickerEnabled,
+        ui.createSwitch({
+          isToggled: () => autoKickerEnabled,
+          onTouched: (e) => {if (e.type == TouchType.PRESSED) autoKickerEnabled = !autoKickerEnabled},
         })
       ]
     })
@@ -347,13 +347,13 @@ const createPidMenu = () => {
 }
 
 var goToNextStage = () => {
-  var pidMenu = createPidMenu();
   pidMenu.show();
 };
 
 var goToPreviousStage = () => {
-  var autoKickMenu = createAutoKickerMenu();
   autoKickMenu.show();
 }
 
 init();
+var autoKickMenu = createAutoKickerMenu();
+var pidMenu = createPidMenu();
