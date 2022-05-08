@@ -429,7 +429,7 @@ var getTh = (level) => 140 + ThStepSize * level;
 var getTc = (level) => 60 + TcStepSize * level;
 var getTmax = (level) => 600 + ThStepSize * level;
 var getTolerance = (level) => parseFloat(baseTolerance * BigNumber.TEN.pow(-parseInt(level)));
-var getPublicationMultiplier = (tau) => tau.pow(publicationExponent);
+var getPublicationMultiplier = (tau) => achievementMultiplier * tau.pow(publicationExponent);
 var getPublicationMultiplierFormula = (symbol) => BigNumber.from(achievementMultiplier).toString(2) + "\\times{" + symbol + "}^{" + publicationExponent + "}";
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(0.33);
