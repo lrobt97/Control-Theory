@@ -18,10 +18,11 @@ var ThStepSize = 10;
 var TcStepSize = -2;
 
 // System variables
-var T, output, kp, td, ti, setPoint, prevError, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount;
+var r, T, output, kp, td, ti, setPoint, prevError, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount;
 timer = 0;
 frequency = 1;
 T = BigNumber.from(100);
+r = BigNumber.from(1)
 kp = 2;
 ti = 0.05;
 td = 0.2;
@@ -36,7 +37,7 @@ achievementMultiplier = 1;
 publicationCount = 0;
 
 // Upgrades
-var c1, Th, Tc, c2, c3, kickT, Tmax, changePidValues, autoKick, achievementMultiplierUpgrade;
+var c1, Th, Tc, r1, r2, kickT, Tmax, changePidValues, autoKick, achievementMultiplierUpgrade;
 
 // Milestones
 var c1Exponent, toleranceReduction;
@@ -100,21 +101,21 @@ var init = () => {
     c1.getDescription = (_) => Utils.getMath(getDesc(c1.level));
     c1.getInfo = (amount) => Utils.getMathTo(getInfo(c1.level), getInfo(c1.level + amount));
   }
-  // c2
+  // r1
   {
-    let getDesc = (level) => "c_2=" + getC2(level).toString(0);
-    let getInfo = (level) => "c_2=" + getC2(level).toString(0);
-    c2 = theory.createUpgrade(2, rho, new ExponentialCost(3000, Math.log2(10)));
-    c2.getDescription = (_) => Utils.getMath(getDesc(c2.level));
-    c2.getInfo = (amount) => Utils.getMathTo(getInfo(c2.level), getInfo(c2.level + amount));
+    let getDesc = (level) => "r_1=" + Utils.getStepwisePowerSum(level, 2, 10, 0).toString(0);
+    let getInfo = (level) => "r_1=" + Utils.getStepwisePowerSum(level, 2, 10, 0).toString(0);
+    r1 = theory.createUpgrade(2, rho, new ExponentialCost(10, Math.log2(3)));
+    r1.getDescription = (_) => Utils.getMath(getDesc(r1.level));
+    r1.getInfo = (amount) => Utils.getMathTo(getInfo(r1.level), getInfo(r1.level + amount));
   }
-  // c3
+  // r2
   {
-    let getDesc = (level) => "c_3=" + getC3(level).toString(0);
-    let getInfo = (level) => "c_3=" + getC3(level).toString(0);
-    c3 = theory.createUpgrade(3, rho, new ExponentialCost(3000, Math.log2(10)));
-    c3.getDescription = (_) => Utils.getMath(getDesc(c3.level));
-    c3.getInfo = (amount) => Utils.getMathTo(getInfo(c3.level), getInfo(c3.level + amount));
+    let getDesc = (level) => "r_2= 2^{" + level + "}";
+    let getInfo = (level) => "r_2=" + getR2(level).toString(0);
+    r2 = theory.createUpgrade(3, rho, new ExponentialCost(15, Math.log2(8)));
+    r2.getDescription = (_) => Utils.getMath(getDesc(r2.level));
+    r2.getInfo = (amount) => Utils.getMathTo(getInfo(r2.level), getInfo(r2.level + amount));
   }
 
   //Th
@@ -189,19 +190,20 @@ var init = () => {
     kickT.isAvailable = autoKick.level == 0;
   }
 
-  var getInternalState = () => `${T.toString()} ${prevError.toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()}`;
+  var getInternalState = () => `${T.toString()} ${prevError.toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r}`;
 
   var setInternalState = (state) => {
     debug = state;
     let values = state.split(" ");
-    if (values.length > 0) T = parseFloat(values[0]);
+    if (values.length > 0) T = BigNumber.from(parseFloat(values[0]));
     if (values.length > 1) prevError = parseFloat(values[1]);
     if (values.length > 2) integral = parseFloat(values[2]);
     if (values.length > 3) kp = parseFloat(values[3]);
     if (values.length > 4) ti = parseFloat(values[4]);
     if (values.length > 5) td = parseFloat(values[5]);
     if (values.length > 6) valve = parseFloat(values[6]);
-    if (values.length > 7) publicationCount = parseFloat(values[7]);
+    if (values.length > 7) publicationCount = parseFloat(values[7])
+    if (values.length > 8) r = BigNumber.from(parseFloat(values[8]));
   }
 
   var updatePidValues = () => {
@@ -228,7 +230,10 @@ var init = () => {
           ui.createLabel({text: "Value to set T. Maximum: " + getTmax(Tmax.level)}),
           ui.createEntry({
             placeholder: amplitude.toString(),
-            onTextChanged: (_, text) => (text > Tmax) ? amplitude = Tmax : (text < -273.15) ? amplitude = -273.15 : amplitude = parseFloat(text),
+            onTextChanged: (_, text) => {
+              if (text == "" || !parseFloat(text)) amplitude = 100;
+              (text > Tmax) ? amplitude = Tmax : (text < -273.15) ? amplitude = -273.15 : amplitude = parseFloat(text);
+            }
           }),
           ui.createLabel({text: "Frequency in seconds:"}),
           ui.createEntry({
@@ -236,9 +241,9 @@ var init = () => {
             onTextChanged: (_, text) => frequency = parseFloat(text),
           }),
           ui.createLabel({text: "Off/On"}),
-          ui.createCheckBox({
-            isChecked: autoKickerEnabled,
-            onCheckedChanged: () => autoKickerEnabled = !autoKickerEnabled,
+          ui.createSwitch({
+            isToggled: () => autoKickerEnabled,
+            onTouched: (e) => {if (e.type == TouchType.PRESSED) autoKickerEnabled = !autoKickerEnabled},
           })
         ]
       })
@@ -326,13 +331,14 @@ var init = () => {
     valve = valveTarget + (valve - valveTarget) * BigNumber.E.pow(-dt);
     let prevT = T;
     if (valve > 0) {
-      T = getTh(Th.level) - (getTh(Th.level) - T) * BigNumber.E.pow(-1 * getC2(c2.level) * Math.abs(valve) * dt)
+      T = getTh(Th.level) - (getTh(Th.level) - T) * BigNumber.E.pow(-1 * Math.abs(valve) * dt)
     } else if (valve < 0) {
-      T = (T - getTc(Tc.level)) * BigNumber.E.pow(-1 * getC2(c2.level) * Math.abs(valve) * dt) + getTc(Tc.level);
+      T = (T - getTc(Tc.level)) * BigNumber.E.pow(-1 * Math.abs(valve) * dt) + getTc(Tc.level);
     }
 
     dT = (T - prevT) / dt
-    rho.value += bonus * Math.sqrt(getC1(c1.level).pow(1 + c1Exponent.level * 0.05) * Math.pow(dT, 2)) * dt;
+    r += getR1(r1.level)*getR2(r2.level)/(1+Math.abs(error))*dt;
+    rho.value += r*bonus * Math.sqrt(getC1(c1.level).pow(1 + c1Exponent.level * 0.05) * Math.pow(dT, 2)) * dt;
 
     // reset integral error when system converges
     if (dT < 0.001) {
@@ -359,16 +365,17 @@ var init = () => {
   // Equations
 
   var getPrimaryEquation = () => {
-    theory.primaryEquationHeight = 90;
-    theory.primaryEquationScale = 0.95;
+    theory.primaryEquationHeight = 110;
+    theory.primaryEquationScale = 1;
     let result = "\\begin{matrix}"
-    result += "\\dot{T} = \\left\\{ \\begin{array}{cl} Q_{h}\\alpha & : \\ u(t) > 0, \\ Q_h = c_2(T_h - T) \\\\ Q_{c}\\alpha & : \\ u(t) < 0, \\ Q_c = c_3(T-T_c)  \\end{array} \\right.\\\\";
-    result += "\\dot{\\rho} = \\sqrt{c_1";
+    result += "\\dot{T} = \\left\\{ \\begin{array}{cl} Q_{h} & : \\ u(t) > 0, \\ Q_h = T_h - T \\\\ Q_{c} & : \\ u(t) < 0, \\ Q_c = T-T_c  \\end{array} \\right.\\\\";
+    result += "\\dot{\\rho} = r\\sqrt{c_1";
     if (c1Exponent.level > 0) {
       let exponent = 1 + c1Exponent.level * 0.05
       result += "^{" + exponent + "}";
     }
     result += "\\dot{T}^2}";
+    result += "\\\\ \\dot{r} = \\frac{r_1 r_2}{1+\|e(t)\|}"
     result += "\\end{matrix}"
     return result;
   }
@@ -388,15 +395,15 @@ var init = () => {
     let result = "";
     result += "T =" + Math.fround(T).toPrecision(5);
     result += ",\\,T_{sp} =" + setPoint + ",\\ e(t) = " + Math.fround(prevError).toPrecision(3);
-    result += ",\\,\\alpha =" + Math.fround(valve).toPrecision(2)
     result += ",\\,\\epsilon =" + getTolerance(toleranceReduction.level);
+    result += ",\\, r ="+ r;
     return result;
   }
 }
 
 var getC1 = (level) => BigNumber.TWO.pow(level);
-var getC2 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 1);
-var getC3 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 1);
+var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
+var getR2 = (level) => BigNumber.TWO.pow(level)-1;
 var getTh = (level) => 140 + ThStepSize * level;
 var getTc = (level) => 60 + TcStepSize * level;
 var getTmax = (level) => 600 + ThStepSize * level;
