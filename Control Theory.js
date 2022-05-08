@@ -10,6 +10,7 @@ var description = "Control Theory is a tool used in engineering to maintain a va
 var authors = "Gaunter#7599, peanut#6368";
 var version = 1.1;
 var publicationExponent = 0.33;
+var achievements;
 
 // Currency
 var rho;
@@ -17,7 +18,7 @@ var ThStepSize = 10;
 var TcStepSize = -2;
 
 // System variables
-var T, output, kp, td, ti, setPoint, prevError, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance;
+var T, output, kp, td, ti, setPoint, prevError, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount;
 timer = 0;
 frequency = 1;
 T = BigNumber.from(100);
@@ -31,9 +32,11 @@ output = 0;
 amplitude = 125;
 autoKickerEnabled = false;
 baseTolerance = 5; 
+achievementMultiplier = 1;
+publicationCount = 0;
 
 // Upgrades
-var c1, Th, Tc, c2, c3, kickT, Tmax, changePidValues, autoKick;
+var c1, Th, Tc, c2, c3, kickT, Tmax, changePidValues, autoKick, achievementMultiplierUpgrade;
 
 // Milestones
 var c1Exponent, toleranceReduction;
@@ -75,6 +78,12 @@ var init = () => {
   }
   theory.createBuyAllUpgrade(3, rho, 1e10);
   theory.createAutoBuyerUpgrade(4, rho, 1e20);
+  {
+    achievementMultiplierUpgrade = theory.createPermanentUpgrade(5, rho, new LinearCost (1e50, 0))
+    achievementMultiplierUpgrade.maxLevel = 1;
+    achievementMultiplierUpgrade.getDescription = (_) => "Achievement multiplier"
+    achievementMultiplierUpgrade.getInfo = (_) => "Multiplies income by " + achievementMultiplier.toPrecision(3);
+  }
 
   // Kick T
   {
@@ -136,17 +145,51 @@ var init = () => {
 
   systemDt = 0.01;
   setPoint = 100;
+
+  /////////////////////
+  // Achievements
+
+  let achievement_category1 = theory.createAchievementCategory(0, "Temperature");
+  let achievement_category2 = theory.createAchievementCategory(1, "Milestones");
+  let achievement_category3 = theory.createAchievementCategory(2, "Publications");
+
+  achievements = [
+    // Temperature
+    theory.createAchievement(0, achievement_category1, "Hotter than the sun", "Have T exceed 5500.", () => T > BigNumber.from(5500)),
+    theory.createAchievement(1, achievement_category1, "Sub-zero", "Have T plummet below 0.", () => T < BigNumber.from(0)),
+    theory.createAchievement(2, achievement_category1, "Absolute 0", "Have T plummet below -273.", () => T < BigNumber.from(-273)),
+
+    // Milestones
+    theory.createAchievement(3, achievement_category2, "Junior Engineer", "Reach 1e10τ.", () => theory.tau > BigNumber.from(1e10)),
+    theory.createAchievement(4, achievement_category2, "Senior Engineer", "Reach 1e25τ.", () => theory.tau > BigNumber.from(1e25)),
+    theory.createAchievement(5, achievement_category2, "Prinicipal Engineer", "Reach 1e50τ.", () => theory.tau > BigNumber.from(1e50)),
+    theory.createAchievement(6, achievement_category2, "Googol Engineer", "Reach 1e100τ.", () => theory.tau > BigNumber.from(1e100)),
+
+    // Publications
+    theory.createAchievement(7, achievement_category3, "Research Intern", "Publish 5 times.", () => publicationCount >= 5),
+    theory.createAchievement(8, achievement_category3, "R&D Engineer", "Publish 10 times.", () => publicationCount >= 10),
+    theory.createAchievement(9, achievement_category3, "\"That's Dr., not Mr.\"", "Publish 25 times.", () => publicationCount >= 25),
+  ];
   updateAvailability();
 }
 
 {
  // Internal
+  var calculateAchievementMultiplier = () => {
+    let count = 0;
+    for (const achievement of achievements) {
+      if (achievement.isUnlocked) {
+        count++
+      }
+    }
+    achievementMultiplier = Math.pow(2, (0.1*count));
+  }
 
   var updateAvailability = () => {
     kickT.isAvailable = autoKick.level == 0;
   }
 
-  var getInternalState = () => `${T.toString()} ${prevError.toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()}`;
+  var getInternalState = () => `${T.toString()} ${prevError.toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -158,6 +201,7 @@ var init = () => {
     if (values.length > 4) ti = parseFloat(values[4]);
     if (values.length > 5) td = parseFloat(values[5]);
     if (values.length > 6) valve = parseFloat(values[6]);
+    if (values.length > 7) publicationCount = parseFloat(values[7]);
   }
 
   var updatePidValues = () => {
@@ -254,8 +298,10 @@ var init = () => {
   }
 
   var tick = (elapsedTime, multiplier) => {
+    calculateAchievementMultiplier();
     let dt = BigNumber.from(elapsedTime * multiplier);
     let bonus = theory.publicationMultiplier;
+    if (achievementMultiplierUpgrade.level > 0) bonus *= achievementMultiplier;
     let error = T - setPoint;
     let proportional = error;
     let derivative = (error - prevError) / systemDt
@@ -277,7 +323,6 @@ var init = () => {
     }
 
     let dT = 0;
-    log(output);
     valve = valveTarget + (valve - valveTarget) * BigNumber.E.pow(-dt);
     let prevT = T;
     if (valve > 0) {
@@ -360,5 +405,6 @@ var getPublicationMultiplier = (tau) => tau.pow(publicationExponent);
 var getPublicationMultiplierFormula = (symbol) => "{" + symbol + "}^{" + publicationExponent + "}";
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(0.33);
+var postPublish = () => publicationCount++;
 
 init();
