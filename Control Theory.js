@@ -32,7 +32,7 @@ prevError = 0;
 output = 0;
 amplitude = 125;
 autoKickerEnabled = false;
-baseTolerance = 5; 
+baseTolerance = 5;
 achievementMultiplier = 1;
 publicationCount = 0;
 
@@ -45,6 +45,7 @@ var c1Exponent, toleranceReduction;
 
 var init = () => {
   rho = theory.createCurrency();
+
   /////////////////////
   // Milestone Upgrades
 
@@ -53,8 +54,9 @@ var init = () => {
     c1Exponent = theory.createMilestoneUpgrade(0, 3);
     c1Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("c1", 0.05)
     c1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("c1", "0.05")
-    c1Exponent.boughtOrRefunded = (_) => updateAvailability();
+    c1Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
+
   {
     toleranceReduction = theory.createMilestoneUpgrade(1, 2);
     toleranceReduction.getInfo = (level) => Utils.getMathTo("\\epsilon" , getTolerance(level));
@@ -62,23 +64,32 @@ var init = () => {
     toleranceReduction.boughtOrRefunded = (_) => updateAvailability();
   }
 
+
   /////////////////////
   // Permanent Upgrades
+
+  // T Autokick
   {
     autoKick = theory.createPermanentUpgrade(0, rho, new LinearCost(1e3, 0));
     autoKick.maxLevel = 1;
     autoKick.getDescription = (_) => "Automatically adjust T";
     autoKick.getInfo = (_) => "Automatically adjusts T";
   }
+
   theory.createPublicationUpgrade(1, rho, 1e6);
+
+  // PID Menu Unlock
   {
     changePidValues = theory.createPermanentUpgrade(2, rho, new LinearCost(1e8, 0));
     changePidValues.maxLevel = 1;
     changePidValues.getDescription = (_) => Localization.getUpgradeUnlockDesc("\\text{PID Menu}");
     changePidValues.getInfo = (_) => Localization.getUpgradeUnlockInfo("\\text{PID Menu}");
   }
+
   theory.createBuyAllUpgrade(3, rho, 1e10);
   theory.createAutoBuyerUpgrade(4, rho, 1e20);
+
+  // Achievement Multiplier
   {
     achievementMultiplierUpgrade = theory.createPermanentUpgrade(5, rho, new LinearCost (1e50, 0))
     achievementMultiplierUpgrade.maxLevel = 1;
@@ -93,6 +104,11 @@ var init = () => {
     kickT.getInfo = (_) => Utils.getMathTo("T=" + T, "T=125");
     kickT.bought = (_) => T = amplitude;
   }
+
+
+  /////////////////////
+  // Upgrades
+
   // c1
   {
     let getDesc = (level) => "c_1=2^{" + level + "}";
@@ -101,6 +117,7 @@ var init = () => {
     c1.getDescription = (_) => Utils.getMath(getDesc(c1.level));
     c1.getInfo = (amount) => Utils.getMathTo(getInfo(c1.level), getInfo(c1.level + amount));
   }
+
   // r1
   {
     let getDesc = (level) => "r_1=" + Utils.getStepwisePowerSum(level, 2, 10, 0).toString(0);
@@ -109,6 +126,7 @@ var init = () => {
     r1.getDescription = (_) => Utils.getMath(getDesc(r1.level));
     r1.getInfo = (amount) => Utils.getMathTo(getInfo(r1.level), getInfo(r1.level + amount));
   }
+
   // r2
   {
     let getDesc = (level) => "r_2= 2^{" + level + "}";
@@ -126,6 +144,7 @@ var init = () => {
     Th.getDescription = (_) => Utils.getMath(getDesc(Th.level));
     Th.getInfo = (amount) => Utils.getMathTo(getInfo(Th.level), getInfo(Th.level + amount))
   }
+
   //Tc
   {
     let getInfo = (level) => "T_c=" + getTc(level).toString();
@@ -134,6 +153,7 @@ var init = () => {
     Tc.getDescription = (_) => Utils.getMath(getDesc(Tc.level));
     Tc.getInfo = (amount) => Utils.getMathTo(getInfo(Tc.level), getInfo(Tc.level + amount))
   }
+
   //Tmax
   {
     let getInfo = (level) => "T_{max}=" + getTmax(level).toString();
@@ -155,6 +175,7 @@ var init = () => {
   let achievement_category3 = theory.createAchievementCategory(2, "Publications");
 
   achievements = [
+
     // Temperature
     theory.createAchievement(0, achievement_category1, "Hotter than the sun", "Have T exceed 5500.", () => T > BigNumber.from(5500)),
     theory.createAchievement(1, achievement_category1, "Sub-zero", "Have T plummet below 0.", () => T < BigNumber.from(0)),
@@ -175,7 +196,7 @@ var init = () => {
 }
 
 {
- // Internal
+  // Internal
   var calculateAchievementMultiplier = () => {
     let count = 0;
     for (const achievement of achievements) {
@@ -374,8 +395,8 @@ var init = () => {
       let exponent = 1 + c1Exponent.level * 0.05
       result += "^{" + exponent + "}";
     }
-    result += "\\dot{T}^2}";
-    result += "\\\\ \\dot{r} = \\frac{r_1 r_2}{1+\|e(t)\|}"
+    result += "\\dot{T}^{2}}";
+    result += ", \\;\\dot{r} = \\frac{r_1 r_2}{1+\|e(t)\|}"
     result += "\\end{matrix}"
     return result;
   }
