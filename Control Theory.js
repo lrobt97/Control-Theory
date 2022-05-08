@@ -448,6 +448,7 @@ var getPublicationMultiplier = (tau) => achievementMultiplier * tau.pow(publicat
 var getPublicationMultiplierFormula = (symbol) => BigNumber.from(achievementMultiplier).toString(2) + "\\times{" + symbol + "}^{" + publicationExponent + "}";
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(0.33);
+var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(0.33), rho.symbol];
 var postPublish = () => publicationCount++;
 
 init();
