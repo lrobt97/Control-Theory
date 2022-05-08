@@ -40,7 +40,7 @@ publicationCount = 0;
 var c1, Th, Tc, r1, r2, kickT, Tmax, changePidValues, autoKick, achievementMultiplierUpgrade;
 
 // Milestones
-var c1Exponent, toleranceReduction;
+var c1Exponent, rExponent, toleranceReduction;
 
 
 var init = () => {
@@ -58,7 +58,14 @@ var init = () => {
   }
 
   {
-    toleranceReduction = theory.createMilestoneUpgrade(1, 2);
+    rExponent = theory.createMilestoneUpgrade(1, 3);
+    rExponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r1", 0.05); // change this to your liking
+    rExponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r1", "0.05");
+    rExponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+  }
+
+  {
+    toleranceReduction = theory.createMilestoneUpgrade(2, 2);
     toleranceReduction.getInfo = (level) => Utils.getMathTo("\\epsilon" , getTolerance(level));
     toleranceReduction.getDescription = (level) => Utils.getMath("\\epsilon = " + getTolerance(level))
     toleranceReduction.boughtOrRefunded = (_) => updateAvailability();
@@ -358,8 +365,12 @@ var init = () => {
     }
 
     dT = (T - prevT) / dt
-    r += getR1(r1.level)*getR2(r2.level)/(1+Math.abs(error))*dt;
-    rho.value += r*bonus * Math.sqrt(getC1(c1.level).pow(1 + c1Exponent.level * 0.05) * Math.pow(dT, 2)) * dt;
+    r += getR1(r1.level)*getR2(r2.level)/(1+Math.abs(error)) * dt;
+
+    let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
+    let value_r = r.pow(getRExp(rExponent.level))
+
+    rho.value += value_r * Math.sqrt(value_c1 * Math.pow(dT, 2)) * dt * bonus; // use bignumber sqrt and pow, not Math ones, they dont support values above 1e308 - peanut
 
     // reset integral error when system converges
     if (dT < 0.001) {
@@ -386,17 +397,18 @@ var init = () => {
   // Equations
 
   var getPrimaryEquation = () => {
-    theory.primaryEquationHeight = 110;
+    theory.primaryEquationHeight = 90;
     theory.primaryEquationScale = 1;
     let result = "\\begin{matrix}"
+
+    let c1_exp = c1Exponent.level > 0 ? getC1Exp(c1Exponent.level).toNumber() : "";
+    let r1_exp = rExponent.level > 0 ? getRExp(rExponent.level).toNumber() : "";
+
     result += "\\dot{T} = \\left\\{ \\begin{array}{cl} Q_{h} & : \\ u(t) > 0, \\ Q_h = T_h - T \\\\ Q_{c} & : \\ u(t) < 0, \\ Q_c = T-T_c  \\end{array} \\right.\\\\";
-    result += "\\dot{\\rho} = r\\sqrt{c_1";
-    if (c1Exponent.level > 0) {
-      let exponent = 1 + c1Exponent.level * 0.05
-      result += "^{" + exponent + "}";
-    }
-    result += "\\dot{T}^{2}}";
+
+    result += "\\dot{\\rho} = r^{" + r1_exp + "}\\sqrt{c_1^{" + c1_exp +"}\\dot{T}^{2}}";
     result += ", \\;\\dot{r} = \\frac{r_1 r_2}{1+\|e(t)\|}"
+
     result += "\\end{matrix}"
     return result;
   }
@@ -421,6 +433,9 @@ var init = () => {
     return result;
   }
 }
+
+var getC1Exp = (level) => BigNumber.from(1 + c1Exponent.level * 0.05);
+var getRExp = (level) => BigNumber.from(1 + rExponent.level * 0.05);
 
 var getC1 = (level) => BigNumber.TWO.pow(level);
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
