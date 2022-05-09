@@ -14,8 +14,6 @@ var achievements;
 
 // Currency
 var rho;
-var ThStepSize = 10;
-var TcStepSize = -2;
 
 // System variables
 var r, T, output, kp, td, ti, setPoint, prevError, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount;
@@ -49,23 +47,31 @@ var init = () => {
   /////////////////////
   // Milestone Upgrades
 
-  theory.setMilestoneCost(new LinearCost(15, 15));
+  theory.setMilestoneCost(new LinearCost(10*publicationExponent, 25*publicationExponent));
+  // T Autokick
   {
-    c1Exponent = theory.createMilestoneUpgrade(0, 3);
+    autoKick = theory.createMilestoneUpgrade(0, 1);
+    autoKick.maxLevel = 1;
+    autoKick.getDescription = (_) => "Automatically adjust T";
+    autoKick.getInfo = (_) => "Automatically adjusts T";
+    autoKick.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+  }
+  {
+    c1Exponent = theory.createMilestoneUpgrade(1, 3);
     c1Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("c1", 0.05)
     c1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("c1", "0.05")
     c1Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
 
   {
-    rExponent = theory.createMilestoneUpgrade(1, 3);
-    rExponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r1", 0.05); // change this to your liking
+    rExponent = theory.createMilestoneUpgrade(2, 3);
+    rExponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r1", 0.05);
     rExponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r1", "0.05");
     rExponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
 
   {
-    toleranceReduction = theory.createMilestoneUpgrade(2, 2);
+    toleranceReduction = theory.createMilestoneUpgrade(3, 2);
     toleranceReduction.getInfo = (level) => Utils.getMathTo("\\epsilon" , getTolerance(level));
     toleranceReduction.getDescription = (level) => Utils.getMath("\\epsilon = " + getTolerance(level))
     toleranceReduction.boughtOrRefunded = (_) => updateAvailability();
@@ -75,15 +81,7 @@ var init = () => {
   /////////////////////
   // Permanent Upgrades
 
-  // T Autokick
-  {
-    autoKick = theory.createPermanentUpgrade(0, rho, new LinearCost(1e3, 0));
-    autoKick.maxLevel = 1;
-    autoKick.getDescription = (_) => "Automatically adjust T";
-    autoKick.getInfo = (_) => "Automatically adjusts T";
-  }
-
-  theory.createPublicationUpgrade(1, rho, 1e6);
+  theory.createPublicationUpgrade(1, rho, 1e8);
 
   // PID Menu Unlock
   {
@@ -154,9 +152,10 @@ var init = () => {
 
   //Tc
   {
-    let getInfo = (level) => "T_c=" + getTc(level).toString();
-    let getDesc = (level) => "T_c=" + getTc(level).toString();
+    let getInfo = (level) => "T_c=" + getTc(level);
+    let getDesc = (level) => "T_c=" + getTc(level);
     Tc = theory.createUpgrade(5, rho, new ExponentialCost(3000, Math.log2(10)));
+    Tc.maxLevel = 37;
     Tc.getDescription = (_) => Utils.getMath(getDesc(Tc.level));
     Tc.getInfo = (amount) => Utils.getMathTo(getInfo(Tc.level), getInfo(Tc.level + amount))
   }
@@ -216,9 +215,12 @@ var init = () => {
 
   var updateAvailability = () => {
     kickT.isAvailable = autoKick.level == 0;
+    c1Exponent.isAvailable  = autoKick.level >= 1;
+    rExponent.isAvailable = autoKick.level >= 1;
+    toleranceReduction.isAvailable = autoKick.level >= 1
   }
 
-  var getInternalState = () => `${T.toString()} ${prevError.toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r}`;
+  var getInternalState = () => `${T.toString()} ${prevError.toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -232,6 +234,7 @@ var init = () => {
     if (values.length > 6) valve = parseFloat(values[6]);
     if (values.length > 7) publicationCount = parseFloat(values[7])
     if (values.length > 8) r = BigNumber.from(parseFloat(values[8]));
+    if (values.length > 9) autoKickerEnabled = values[9] == "true";
   }
 
   var updatePidValues = () => {
@@ -351,7 +354,7 @@ var init = () => {
       valveTarget = 1;
     } else if (output < -100) {
       valveTarget = -1;
-    } else {
+    } else {0
       valveTarget = output / 100;
     }
 
@@ -370,7 +373,7 @@ var init = () => {
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
     let value_r = r.pow(getRExp(rExponent.level))
 
-    rho.value += value_r * Math.sqrt(value_c1 * Math.pow(dT, 2)) * dt * bonus; // use bignumber sqrt and pow, not Math ones, they dont support values above 1e308 - peanut
+    rho.value += value_r * BigNumber.from(value_c1 * Math.pow(dT, 2)).sqrt() * dt * bonus; // use bignumber sqrt and pow, not Math ones, they dont support values above 1e308 - peanut
 
     // reset integral error when system converges
     if (dT < 0.001) {
@@ -439,10 +442,10 @@ var getRExp = (level) => BigNumber.from(1 + rExponent.level * 0.05);
 
 var getC1 = (level) => BigNumber.TWO.pow(level);
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
-var getR2 = (level) => BigNumber.TWO.pow(level)-1;
-var getTh = (level) => 140 + ThStepSize * level;
-var getTc = (level) => 60 + TcStepSize * level;
-var getTmax = (level) => 600 + ThStepSize * level;
+var getR2 = (level) => BigNumber.TWO.pow(level);
+var getTh = (level) => 110 + 10 * level;
+var getTc = (level) => BigNumber.from(96.9 - 10 * level);
+var getTmax = (level) => 150 + 10 * level;
 var getTolerance = (level) => parseFloat(baseTolerance * BigNumber.TEN.pow(-parseInt(level)));
 var getPublicationMultiplier = (tau) => achievementMultiplier * tau.pow(publicationExponent);
 var getPublicationMultiplierFormula = (symbol) => (achievementMultiplier > 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times" : "") + "{" + symbol + "}^{" + publicationExponent + "}";
