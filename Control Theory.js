@@ -450,7 +450,7 @@ var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(0.33);
 var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(3), rho.symbol];
 var postPublish = () => {
-  r = 1;
+  r = BigNumber.from(1);
   publicationCount++;
 }
 init();
