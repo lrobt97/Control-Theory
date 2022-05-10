@@ -16,18 +16,22 @@ var achievements;
 var rho;
 
 // System variables
-var r, T, output, kp, td, ti, setPoint, prevError, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount;
+var d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount;
 timer = 0;
 frequency = 1;
 T = BigNumber.from(100);
 r = BigNumber.from(1)
-kp = 2;
-ti = 0.05;
+kp = 1;
+ti = 5;
 td = 0.2;
-valve = 0;
+valve = BigNumber.ZERO;
 integral = 0;
-prevError = 0;
+error = [0, 0, 0];
 output = 0;
+d1 = 0;
+d0 = 0;
+fd1 = 0;
+fd0 = 0;
 amplitude = 125;
 autoKickerEnabled = false;
 baseTolerance = 5;
@@ -220,13 +224,13 @@ var init = () => {
     toleranceReduction.isAvailable = autoKick.level >= 1
   }
 
-  var getInternalState = () => `${T.toString()} ${prevError.toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled}`;
+  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled}`;
 
   var setInternalState = (state) => {
     debug = state;
     let values = state.split(" ");
     if (values.length > 0) T = BigNumber.from(parseFloat(values[0]));
-    if (values.length > 1) prevError = parseFloat(values[1]);
+    if (values.length > 1) error[0] = parseFloat(values[1]);
     if (values.length > 2) integral = parseFloat(values[2]);
     if (values.length > 3) kp = parseFloat(values[3]);
     if (values.length > 4) ti = parseFloat(values[4]);
@@ -338,25 +342,51 @@ var init = () => {
     let dt = BigNumber.from(elapsedTime * multiplier);
     let bonus = theory.publicationMultiplier;
     if (achievementMultiplierUpgrade.level > 0) bonus *= achievementMultiplier;
-    let error = T - setPoint;
-    let proportional = error;
-    let derivative = (error - prevError) / systemDt
-    let valveTarget = 0;
-    integral += error * systemDt;
 
+    error[2] = error[1];
+    error[1] = error[0];
+    error[0] = T - setPoint;
+    let A0 = kp * kp/ti * (dt);
+    let A1 = -1 * kp;
+    let A0d = kp*td/(dt);
+    let A1d = - 2 * kp*td/(dt);
+    let A2d = kp*td/(dt);
+    let N = 1;
+    let timeConstant = td/N;
+    let alpha = (dt)/(2*timeConstant);
+    output = A0 * error[0] + A1 * error[1];
+    d1 = d0
+    d0 = A0d * error[0] + A1d * error[1] + A2d * error[2];
+    fd1 = fd0;
+    fd0 = ((alpha)/(alpha+1)) * (d1 + d0) - ((alpha - 1)/(alpha + 1)) * fd1
+    output = (output + fd0);
     if (Math.abs(error) <= getTolerance(toleranceReduction.level)) {
       output = 0;
-    } else {
-      output = -kp * (proportional + 1 / ti * integral + td * derivative);
     }
-
     // Normalise output so it is proportional to the gap between setPoint and Tc/Th
-    if (output > 0) valveTarget = ( 1 - (getTh(Th.level) - setPoint)/(getTh(Th.level) - T) )/ kp;
-    else if (output < 0) valveTarget = -1 * ( 1 - (getTc(Tc.level) - setPoint)/(getTc(Tc.level) - T) )/ kp;
+    if (output > 0) {
+      if (T + output  < getTh(Th.level)) {
+        valveTarget = -1 * Math.log((getTh(Th.level) - (T + output))/((getTh(Th.level) - T))) / dt;
+      }
+      else{
+        valveTarget = 1
+      }
+    }
+    else if (output < 0){
+      if (T + output  > getTc(Tc.level)) {
+        log((T + output) - getTc(Tc.level))/(T - (getTc(Tc.level)))
+        valveTarget = Math.log(((T + output) - getTc(Tc.level))/(T - (getTc(Tc.level)))) / dt;
+      }
+      else{
+        valveTarget = -1
+      }    
+    }
     else valveTarget = 0;
 
     let dT = 0;
-    valve = valveTarget + (valve - valveTarget) * BigNumber.E.pow(-dt);
+
+    // Take the exponential moving average to smooth the transition
+    valve = 0.03 * valveTarget + 0.97 * valve;
     let prevT = T;
     if (valve > 0) {
       T = getTh(Th.level) + (T - getTh(Th.level)) * BigNumber.E.pow(-1 * Math.abs(valve) * dt)
@@ -365,7 +395,7 @@ var init = () => {
     }
 
     dT = (T - prevT) / dt
-    r += getR1(r1.level)*getR2(r2.level)/(1+Math.abs(error)) * dt;
+    r += getR1(r1.level)*getR2(r2.level)/(1+Math.abs(error[0])) * dt;
 
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
     let value_r = r.pow(getRExp(rExponent.level))
@@ -387,7 +417,6 @@ var init = () => {
       //resetStage();
     }
 
-    prevError = error;
     theory.invalidateTertiaryEquation();
   }
 }
@@ -427,7 +456,7 @@ var init = () => {
   var getTertiaryEquation = () => {
     let result = "";
     result += "T =" + Math.fround(T).toPrecision(5);
-    result += ",\\,T_{sp} =" + setPoint + ",\\ e(t) = " + Math.fround(prevError).toPrecision(3);
+    result += ",\\,T_{sp} =" + setPoint + ",\\ e(t) = " + Math.fround(error[0]).toPrecision(3);
     result += ",\\,\\epsilon =" + getTolerance(toleranceReduction.level);
     result += ",\\, r ="+ r;
     return result;
