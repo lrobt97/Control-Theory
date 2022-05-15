@@ -380,18 +380,28 @@ var init = () => {
   }
 
   var resetStage = () => {
-    T = BigNumber.from(100);
-    setPoint = BigNumber.from(100);
-    prevError = BigNumber.ZERO;
-    integral = BigNumber.ZERO;
+    setPoint = 100;
+    amplitude = 125;
+    autoKickerEnabled = false;
+    error = [0, 0, 0];
     rho.value = BigNumber.ZERO;
+    valveTarget = 0;
+    valve = 0;
+    dT = 0;
+    prevT = 0;
     c1.level = 0;
-    c2.level = 0;
-    c3.level = 0;
+    r1.level = 0;
+    r2.level = 0;
+    r = BigNumber.ONE;
+    tDotExponent.level = 0;
     Th.level = 0;
     Tc.level = 0;
     Tmax.level = 0;
-    kickT.level = 0;
+    T = 100;
+    d1=0;
+    d0=0;
+    fd0=0;
+    fd1=0;
   }
 
   var tick = (elapsedTime, multiplier) => {
