@@ -531,7 +531,7 @@ var getTmax = (level) => 150 + 10 * level;
 var getTolerance = (level) => parseFloat(baseTolerance * BigNumber.TEN.pow(-parseInt(level)));
 var getTdotExponent = (level) => 2 + level;
 var getPublicationMultiplier = (tau) => achievementMultiplier;
-var getPublicationMultiplierFormula = (symbol) => (achievementMultiplier > 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times" + symbol;
+var getPublicationMultiplierFormula = (symbol) => (achievementMultiplier > 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times" + symbol : symbol);
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
 var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(3), rho.symbol];
