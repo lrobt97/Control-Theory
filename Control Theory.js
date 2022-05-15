@@ -8,7 +8,7 @@ var id = "control_theory";
 var name = "Control Theory";
 var description = "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n To make progress, you will need to disturb T to change rho, however going over a certain threshold will reset your progress. You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_sp. \n \n The controller works by calculating the error, e(t) between T and the set point, T_sp. The controller used in this theory will be a PID -- proportional, integral and derivative controller. K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. The integral term sums up the past errors and attempts to minimise the error after t_i seconds. The derivative term attempts to predict the future error after t_d seconds based on the current derivative of e(t). At some point you will also be able to manually change the values k_p, t_i, t_d, and T_sp to explore the system more deeply and to improve rho gain.\n \n For this example, you will assume that this is a heating controller system. The PID controller will adjust the heater so that T reaches the set point. For the purpose of the simulation, u(t) will be considered as a percentage change, in the real world this would correspond to opening a valve to allow heating/cooling fluid to change the temperature. \n \n "; 
 var authors = "Gaunter#7599, peanut#6368";
-var version = 1.3;
+var version = "1.3.3";
 var publicationExponent = 0.1;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -18,6 +18,8 @@ var rho;
 
 // System variables
 var d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount;
+
+var initialiseSystem = () => {
 timer = 0;
 frequency = 1.2;
 T = BigNumber.from(100);
@@ -39,6 +41,7 @@ baseTolerance = 5;
 achievementMultiplier = 1;
 publicationCount = 0;
 
+}
 // Upgrades
 var c1, Th, Tc, r1, r2, kickT, Tmax, changePidValues, autoKick, achievementMultiplierUpgrade, tDotExponent;
 
@@ -48,6 +51,7 @@ var c1Exponent, rExponent, toleranceReduction;
 
 var init = () => {
   rho = theory.createCurrency();
+  initialiseSystem();
 
   /////////////////////
   // Milestone Upgrades
@@ -380,28 +384,15 @@ var init = () => {
   }
 
   var resetStage = () => {
-    setPoint = 100;
-    amplitude = 125;
-    autoKickerEnabled = false;
-    error = [0, 0, 0];
-    rho.value = BigNumber.ZERO;
-    valveTarget = 0;
-    valve = 0;
-    dT = 0;
-    prevT = 0;
     c1.level = 0;
     r1.level = 0;
     r2.level = 0;
-    r = BigNumber.ONE;
     tDotExponent.level = 0;
     Th.level = 0;
     Tc.level = 0;
     Tmax.level = 0;
-    T = 100;
-    d1=0;
-    d0=0;
-    fd0=0;
-    fd1=0;
+    rho.value=BigNumber.ZERO;
+    initialiseSystem();
   }
 
   var tick = (elapsedTime, multiplier) => {
@@ -540,13 +531,13 @@ var getTc = (level) => 96.9 - 10 * level;
 var getTmax = (level) => 150 + 10 * level;
 var getTolerance = (level) => parseFloat(baseTolerance * BigNumber.TEN.pow(-parseInt(level)));
 var getTdotExponent = (level) => 2 + level;
-var getPublicationMultiplier = (tau) => achievementMultiplier;
+var getPublicationMultiplier = (tau) => achievementMultiplier * tau;
 var getPublicationMultiplierFormula = (symbol) => (achievementMultiplier > 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times" + symbol : symbol);
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
 var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(3), rho.symbol];
 var postPublish = () => {
-  r = BigNumber.from(1);
+  initialiseSystem();
   theory.invalidatePrimaryEquation();
   theory.invalidateTertiaryEquation();
   publicationCount++;
