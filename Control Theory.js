@@ -18,6 +18,8 @@ var rho;
 
 // System variables
 var d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount;
+
+var initialiseSystem = () => {
 timer = 0;
 frequency = 1.2;
 T = BigNumber.from(100);
@@ -39,6 +41,7 @@ baseTolerance = 5;
 achievementMultiplier = 1;
 publicationCount = 0;
 
+}
 // Upgrades
 var c1, Th, Tc, r1, r2, kickT, Tmax, changePidValues, autoKick, achievementMultiplierUpgrade, tDotExponent;
 
@@ -48,6 +51,7 @@ var c1Exponent, rExponent, toleranceReduction;
 
 var init = () => {
   rho = theory.createCurrency();
+  initialiseSystem();
 
   /////////////////////
   // Milestone Upgrades
@@ -380,28 +384,15 @@ var init = () => {
   }
 
   var resetStage = () => {
-    setPoint = 100;
-    amplitude = 125;
-    autoKickerEnabled = false;
-    error = [0, 0, 0];
-    rho.value = BigNumber.ZERO;
-    valveTarget = 0;
-    valve = 0;
-    dT = 0;
-    prevT = 0;
     c1.level = 0;
     r1.level = 0;
     r2.level = 0;
-    r = BigNumber.ONE;
     tDotExponent.level = 0;
     Th.level = 0;
     Tc.level = 0;
     Tmax.level = 0;
-    T = 100;
-    d1=0;
-    d0=0;
-    fd0=0;
-    fd1=0;
+    rho.value=BigNumber.ZERO;
+    initialiseSystem();
   }
 
   var tick = (elapsedTime, multiplier) => {
@@ -540,13 +531,13 @@ var getTc = (level) => 96.9 - 10 * level;
 var getTmax = (level) => 150 + 10 * level;
 var getTolerance = (level) => parseFloat(baseTolerance * BigNumber.TEN.pow(-parseInt(level)));
 var getTdotExponent = (level) => 2 + level;
-var getPublicationMultiplier = (tau) => achievementMultiplier;
+var getPublicationMultiplier = (tau) => achievementMultiplier * tau;
 var getPublicationMultiplierFormula = (symbol) => (achievementMultiplier > 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times" + symbol : symbol);
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
 var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(3), rho.symbol];
 var postPublish = () => {
-  r = BigNumber.from(1);
+  initialiseSystem();
   theory.invalidatePrimaryEquation();
   theory.invalidateTertiaryEquation();
   publicationCount++;
