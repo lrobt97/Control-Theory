@@ -18,11 +18,15 @@ var rho;
 // UI Variables
 var cycleEstimateText = Utils.getMath("\\text{Estimated cycle } \\dot{T} \\text{: } ");
 var cycleEstimateLabel;
+var rEstimateText = Utils.getMath("\\text{Estimated cycle } \\dot{r} \\text{: } ");
+var rEstimateLabel;
+
 
 // System variables
 var Tc, Th, d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
 kp = 1;
 cycleEstimate = BigNumber.ZERO;
+rEstimate = BigNumber.ZERO;
 ti = 5;
 td = 0.2;
 amplitude = 125;
@@ -33,6 +37,7 @@ var initialiseSystem = () => {
 timer = 0;
 T = BigNumber.from(100);
 r = BigNumber.from(1)
+cycleR = [BigNumber.ZERO, BigNumber.ZERO];
 valve = BigNumber.ZERO;
 integral = 0;
 error = [0, 0, 0];
@@ -51,7 +56,7 @@ publicationCount = 0;
 var c1, r1, r2, kickT, changePidValues, autoKick, achievementMultiplierUpgrade, tDotExponent;
 
 // Milestones
-var c1Exponent, rExponent, toleranceReduction;
+var c1Exponent, r1Exponent, toleranceReduction;
 
 
 var init = () => {
@@ -78,10 +83,10 @@ var init = () => {
   }
 
   {
-    rExponent = theory.createMilestoneUpgrade(2, 3);
-    rExponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r1", 0.05);
-    rExponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r1", "0.05");
-    rExponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+    r1Exponent = theory.createMilestoneUpgrade(2, 3);
+    r1Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r1", 0.05);
+    r1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r1", "0.05");
+    r1Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
 
   {
@@ -209,11 +214,11 @@ var init = () => {
   var updateAvailability = () => {
     kickT.isAvailable = autoKick.level == 0;
     c1Exponent.isAvailable  = autoKick.level >= 1;
-    rExponent.isAvailable = autoKick.level >= 1;
+    r1Exponent.isAvailable = autoKick.level >= 1;
     toleranceReduction.isAvailable = autoKick.level >= 1
   }
 
-  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint}`;
+  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -229,7 +234,10 @@ var init = () => {
     if (values.length > 8) r = BigNumber.from(parseFloat(values[8]));
     if (values.length > 9) autoKickerEnabled = values[9] == "true";
     if (values.length > 10) cycleEstimate = BigNumber.from(parseFloat(values[10]));
-    if (values.length > 11) parseFloat(values[11]);
+    if (values.length > 11) setPoint = parseFloat(values[11]);
+    if (values.length > 12) rEstimate = BigNumber.from(parseFloat(values[12]));
+    if (values.length > 13) amplitude = BigNumber.from(parseFloat(values[13]));
+    if (values.length > 14) frequency = BigNumber.from(parseFloat(values[14]));
   }
 
   var updatePidValues = () => {
@@ -273,6 +281,7 @@ var init = () => {
             onTouched: (e) => {if (e.type == TouchType.PRESSED) autoKickerEnabled = !autoKickerEnabled }
           }),
           cycleEstimateLabel = ui.createLatexLabel({text: cycleEstimateText  + cycleEstimate.toString()}),
+          rEstimateLabel = ui.createLatexLabel({text: rEstimateText + rEstimate.toString()}),
           ui.createButton({
             text: "Update",
             onClicked: () => {
@@ -377,7 +386,10 @@ var init = () => {
     timer += dt;
     if (timer > frequency && autoKickerEnabled == true) {
       cycleEstimate = BigNumber.from(Math.abs(amplitude-T)/frequency);
+      rEstimate = BigNumber.from(Math.abs(cycleR[1] - cycleR[0])/frequency);
       if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
+      if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
+      cycleR[0] = r;
       T = amplitude;
       timer = 0;
       output = 0;
@@ -422,15 +434,20 @@ var init = () => {
     }
 
     dT = BigNumber.from((T - prevT) / dt).abs();
-    r += getR1(r1.level)*getR2(r2.level)/(1+Math.abs(error[0])) * dt;
+    if (dt < frequency){
+    r += getR1(r1.level).pow(getR1Exp(r1Exponent.level))*getR2(r2.level)/(1+Math.abs(error[0])) * dt;
+    cycleR[1] = r;
+    }
+    else{
+      r += rEstimate*dt;
+    }
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
-    let value_r = r.pow(getRExp(rExponent.level))
 
     if (dt < frequency){
-      rho.value += value_r * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus; 
+      rho.value += r * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus; 
     }
     else if (cycleEstimate > 0){
-      rho.value += value_r * BigNumber.from(value_c1 * cycleEstimate.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus;
+      rho.value += r * BigNumber.from(value_c1 * cycleEstimate.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus;
     }
 
     theory.invalidateTertiaryEquation();
@@ -447,7 +464,7 @@ var init = () => {
     let result = "\\begin{matrix}"
 
     let c1_exp = c1Exponent.level > 0 ? getC1Exp(c1Exponent.level).toNumber() : "";
-    let r1_exp = rExponent.level > 0 ? getRExp(rExponent.level).toNumber() : "";
+    let r1_exp = r1Exponent.level > 0 ? getR1Exp(r1Exponent.level).toNumber() : "";
 
     result += "\\dot{T} = \\left\\{ \\begin{array}{cl} Q_{h} & : \\ u(t) > 0, \\ Q_h = " + Th +" - T \\\\ Q_{c} & : \\ u(t) < 0, \\ Q_c = T- "+ Tc + "  \\end{array} \\right.\\\\";
 
@@ -480,7 +497,7 @@ var init = () => {
 }
 
 var getC1Exp = (level) => BigNumber.from(1 + c1Exponent.level * 0.05);
-var getRExp = (level) => BigNumber.from(1 + rExponent.level * 0.05);
+var getR1Exp = (level) => BigNumber.from(1 + r1Exponent.level * 0.05);
 
 var getC1 = (level) => BigNumber.from(1.5).pow(level);
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
