@@ -37,7 +37,7 @@ var initialiseSystem = () => {
 timer = 0;
 T = BigNumber.from(100);
 r = BigNumber.from(1)
-cycleR = [BigNumber.ZERO, BigNumber.ZERO];
+cycleR = BigNumber.ZERO;
 valve = BigNumber.ZERO;
 integral = 0;
 error = [0, 0, 0];
@@ -236,8 +236,8 @@ var init = () => {
     if (values.length > 10) cycleEstimate = BigNumber.from(parseFloat(values[10]));
     if (values.length > 11) setPoint = parseFloat(values[11]);
     if (values.length > 12) rEstimate = BigNumber.from(parseFloat(values[12]));
-    if (values.length > 13) amplitude = BigNumber.from(parseFloat(values[13]));
-    if (values.length > 14) frequency = BigNumber.from(parseFloat(values[14]));
+    if (values.length > 13) amplitude = parseFloat(values[13]);
+    if (values.length > 14) frequency = parseFloat(values[14]);
   }
 
   var updatePidValues = () => {
@@ -386,10 +386,10 @@ var init = () => {
     timer += dt;
     if (timer > frequency && autoKickerEnabled == true) {
       cycleEstimate = BigNumber.from(Math.abs(amplitude-T)/frequency);
-      rEstimate = BigNumber.from(Math.abs(cycleR[1] - cycleR[0])/frequency);
+      rEstimate = BigNumber.from(Math.abs(cycleR)/frequency);
       if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
       if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
-      cycleR[0] = r;
+      cycleR = BigNumber.ZERO;
       T = amplitude;
       timer = 0;
       output = 0;
@@ -435,8 +435,9 @@ var init = () => {
 
     dT = BigNumber.from((T - prevT) / dt).abs();
     if (dt < frequency){
-    r += getR1(r1.level).pow(getR1Exp(r1Exponent.level))*getR2(r2.level)/(1+Math.abs(error[0])) * dt;
-    cycleR[1] = r;
+    let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level))*getR2(r2.level)/(1+Math.abs(error[0])) * dt;
+    cycleR += dr;
+    r += dr;
     }
     else{
       r += rEstimate*dt;
@@ -468,8 +469,8 @@ var init = () => {
 
     result += "\\dot{T} = \\left\\{ \\begin{array}{cl} Q_{h} & : \\ u(t) > 0, \\ Q_h = " + Th +" - T \\\\ Q_{c} & : \\ u(t) < 0, \\ Q_c = T- "+ Tc + "  \\end{array} \\right.\\\\";
 
-    result += "\\dot{\\rho} = r^{" + r1_exp + "}\\sqrt{c_1^{" + c1_exp +"}\\dot{T}^{" + getTdotExponent(tDotExponent.level) + "}}";
-    result += ", \\;\\dot{r} = \\frac{r_1 r_2}{1+\|e(t)\|}"
+    result += "\\dot{\\rho} = r\\sqrt{c_1^{" + c1_exp +"}\\dot{T}^{" + getTdotExponent(tDotExponent.level) + "}}";
+    result += ", \\;\\dot{r} = \\frac{r_1^{"+ r1_exp +"} r_2}{1+\|e(t)\|}"
 
     result += "\\end{matrix}"
     return result;
