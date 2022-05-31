@@ -22,6 +22,7 @@ var cycleEstimateLabel;
 // System variables
 var Tc, Th, d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
 kp = 1;
+cycleEstimate = BigNumber.ZERO;
 ti = 5;
 td = 0.2;
 amplitude = 125;
