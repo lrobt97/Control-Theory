@@ -46,8 +46,9 @@ d1 = 0;
 d0 = 0;
 fd1 = 0;
 fd0 = 0;
-Tc = 30
-Th = 200
+Tc = 30;
+Th = 200;
+rEstimate = BigNumber.ZERO;
 baseTolerance = 5;
 achievementMultiplier = 1;
 publicationCount = 0;
@@ -386,9 +387,7 @@ var init = () => {
     timer += dt;
     if (timer > frequency && autoKickerEnabled == true) {
       cycleEstimate = BigNumber.from(Math.abs(amplitude-T)/frequency);
-      rEstimate = BigNumber.from(Math.abs(cycleR)/frequency);
       if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
-      if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
       cycleR = BigNumber.ZERO;
       T = amplitude;
       timer = 0;
@@ -433,11 +432,13 @@ var init = () => {
       T = Tc + (T - Tc) * BigNumber.E.pow(-1 * Math.abs(valve) * dt)
     }
 
+    let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level))*getR2(r2.level)/(1+Math.abs(error[0]));
+    rEstimate = rEstimate * 0.95 + dr * 0.05;
+    if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
     dT = BigNumber.from((T - prevT) / dt).abs();
+
     if (dt < frequency || !autoKickerEnabled) {
-    let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level))*getR2(r2.level)/(1+Math.abs(error[0])) * dt;
-    cycleR += autoKickerEnabled*dr;
-    r += dr;
+      r += dr * dt;
     }
     else if (autoKickerEnabled){
       r += rEstimate*dt;
