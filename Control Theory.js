@@ -7,25 +7,31 @@ import { Utils } from "../api/Utils";
 var id = "control_theory";
 var name = "Control Theory";
 var description = "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n To make progress, you will need to disturb T to change rho, however going over a certain threshold will reset your progress. You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_sp. \n \n The controller works by calculating the error, e(t) between T and the set point, T_sp. The controller used in this theory will be a PID -- proportional, integral and derivative controller. K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. The integral term sums up the past errors and attempts to minimise the error after t_i seconds. The derivative term attempts to predict the future error after t_d seconds based on the current derivative of e(t). At some point you will also be able to manually change the values k_p, t_i, t_d, and T_sp to explore the system more deeply and to improve rho gain.\n \n For this example, you will assume that this is a heating controller system. The PID controller will adjust the heater so that T reaches the set point. For the purpose of the simulation, u(t) will be considered as a percentage change, in the real world this would correspond to opening a valve to allow heating/cooling fluid to change the temperature. \n \n "; 
-var authors = "Gaunter#7599, peanut#6368";
-var version = "1.3.4";
+var authors = "Gaunter#7599, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
+var version = "1.4";
 var publicationExponent = 0.1;
 var achievements;
 requiresGameVersion("1.4.29");
 // Currency
 var rho;
 
-// System variables
-var Tc, Th, d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount;
+// UI Variables
+var cycleEstimateText = Utils.getMath("\\text{Estimated cycle } \\dot{T} \\text{: } ");
+var cycleEstimateLabel;
 
-var initialiseSystem = () => {
-timer = 0;
-frequency = 1.2;
-T = BigNumber.from(100);
-r = BigNumber.from(1)
+// System variables
+var Tc, Th, d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
 kp = 1;
 ti = 5;
 td = 0.2;
+amplitude = 125;
+autoKickerEnabled = false;
+frequency = 1.2;
+
+var initialiseSystem = () => {
+timer = 0;
+T = BigNumber.from(100);
+r = BigNumber.from(1)
 valve = BigNumber.ZERO;
 integral = 0;
 error = [0, 0, 0];
@@ -36,12 +42,9 @@ fd1 = 0;
 fd0 = 0;
 Tc = 30
 Th = 200
-amplitude = 125;
-autoKickerEnabled = false;
 baseTolerance = 5;
 achievementMultiplier = 1;
 publicationCount = 0;
-
 }
 // Upgrades
 var c1, r1, r2, kickT, changePidValues, autoKick, achievementMultiplierUpgrade, tDotExponent;
@@ -209,7 +212,7 @@ var init = () => {
     toleranceReduction.isAvailable = autoKick.level >= 1
   }
 
-  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled}`;
+  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -224,6 +227,8 @@ var init = () => {
     if (values.length > 7) publicationCount = parseFloat(values[7])
     if (values.length > 8) r = BigNumber.from(parseFloat(values[8]));
     if (values.length > 9) autoKickerEnabled = values[9] == "true";
+    if (values.length > 10) cycleEstimate = BigNumber.from(parseFloat(values[10]));
+    if (values.length > 11) parseFloat(values[11]);
   }
 
   var updatePidValues = () => {
@@ -246,11 +251,9 @@ var init = () => {
 
   const createAutoKickerMenu = () => {
     let amplitudeText = "Value to set T. Currently: ";
-    let frequencyText = "Frequency in seconds: "
+    let frequencyText = "Frequency in seconds: ";
     let amplitudeLabel, frequencyLabel;
     let amplitudeSlider, frequencySlider;
-    let autoKickerSwitch;
-    log(setPoint + 10);
     let menu = ui.createPopup({
       title: "Automatically Adjust T",
       content: ui.createStackLayout({
@@ -268,6 +271,7 @@ var init = () => {
             isToggled: () => autoKickerEnabled,
             onTouched: (e) => {if (e.type == TouchType.PRESSED) autoKickerEnabled = !autoKickerEnabled }
           }),
+          cycleEstimateLabel = ui.createLatexLabel({text: cycleEstimateText  + cycleEstimate.toString()}),
           ui.createButton({
             text: "Update",
             onClicked: () => {
@@ -367,7 +371,17 @@ var init = () => {
     calculateAchievementMultiplier();
     let dt = BigNumber.from(elapsedTime * multiplier);
     let bonus = theory.publicationMultiplier;
+
     if (achievementMultiplierUpgrade.level > 0) bonus *= achievementMultiplier;
+    timer += dt;
+    if (timer > frequency && autoKickerEnabled == true) {
+      cycleEstimate = BigNumber.from(Math.abs(amplitude-T)/frequency);
+      if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
+      T = amplitude;
+      timer = 0;
+      output = 0;
+    }
+
     error[2] = error[1];
     error[1] = error[0];
     error[0] = setPoint - T;
@@ -384,7 +398,8 @@ var init = () => {
     d0 = A0d * error[0] + A1d * error[1] + A2d * error[2];
     fd1 = fd0;
     fd0 = ((alpha)/(alpha+1)) * (d1 + d0) - ((alpha - 1)/(alpha + 1)) * fd1
-    output = (output + (Math.abs(error[0]) <= getTolerance(toleranceReduction.level))*fd0);    
+    output = (output + (Math.abs(error[0]) <= getTolerance(toleranceReduction.level))*fd0);  
+
     if (output>100){
       valve = 1
     }
@@ -398,6 +413,7 @@ var init = () => {
 
     let dT = 0;
     let prevT = T;
+
     if (valve > 0) {
       T = Th + (T - Th) * BigNumber.E.pow(-1 * Math.abs(valve) * dt)
     } else if (valve < 0) {
@@ -406,22 +422,16 @@ var init = () => {
 
     dT = BigNumber.from((T - prevT) / dt).abs();
     r += getR1(r1.level)*getR2(r2.level)/(1+Math.abs(error[0])) * dt;
-
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
     let value_r = r.pow(getRExp(rExponent.level))
-    log(dT);
-    rho.value += value_r * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus; // use bignumber sqrt and pow, not Math ones, they dont support values above 1e308 - peanut
 
-    // reset integral error when system converges
-    if (dT < 0.001) {
-      integral = 0;
+    if (dt < frequency){
+      rho.value += value_r * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus; 
+    }
+    else if (cycleEstimate > 0){
+      rho.value += value_r * BigNumber.from(value_c1 * cycleEstimate.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus;
     }
 
-    timer += dt;
-    if (timer > frequency && autoKickerEnabled == true) {
-      T = amplitude;
-      timer = 0;
-    }
     theory.invalidateTertiaryEquation();
   }
 }
@@ -476,8 +486,8 @@ var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
 var getR2 = (level) => BigNumber.TWO.pow(level);
 var getTolerance = (level) => parseFloat(baseTolerance * BigNumber.TEN.pow(-parseInt(level)));
 var getTdotExponent = (level) => 2 + level;
-var getPublicationMultiplier = (tau) => achievementMultiplier * tau;
-var getPublicationMultiplierFormula = (symbol) => (achievementMultiplier > 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times" + symbol : symbol);
+var getPublicationMultiplier = (tau) => achievementMultiplier * tau/4;
+var getPublicationMultiplierFormula = (symbol) => (achievementMultiplier > 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times \\frac{" + symbol + "}{4}" : "\\frac{" + symbol + "}{4}");
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
 var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(10), rho.symbol];
