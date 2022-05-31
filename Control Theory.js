@@ -434,20 +434,21 @@ var init = () => {
     }
 
     dT = BigNumber.from((T - prevT) / dt).abs();
-    if (dt < frequency){
+    if (dt < frequency || !autoKickerEnabled) {
     let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level))*getR2(r2.level)/(1+Math.abs(error[0])) * dt;
-    cycleR += dr;
+    cycleR += autoKickerEnabled*dr;
     r += dr;
     }
-    else{
+    else if (autoKickerEnabled){
       r += rEstimate*dt;
     }
+
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
 
     if (dt < frequency){
       rho.value += r * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus; 
     }
-    else if (cycleEstimate > 0){
+    else if (cycleEstimate > 0 && autoKickerEnabled){
       rho.value += r * BigNumber.from(value_c1 * cycleEstimate.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus;
     }
 
