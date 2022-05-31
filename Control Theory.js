@@ -77,15 +77,15 @@ var init = () => {
   }
   {
     c1Exponent = theory.createMilestoneUpgrade(1, 3);
-    c1Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("c1", 0.05)
-    c1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("c1", "0.05")
+    c1Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("c_1", 0.05)
+    c1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("c_1", "0.05")
     c1Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
 
   {
     r1Exponent = theory.createMilestoneUpgrade(2, 3);
-    r1Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r1", 0.05);
-    r1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r1", "0.05");
+    r1Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r_1", 0.05);
+    r1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r_1", "0.05");
     r1Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
 
@@ -161,10 +161,10 @@ var init = () => {
   }
   //Tdot exponent
   {
-    let getInfo = (level) => "\\dot{T} ^{" + getTdotExponent(level) +"}";
-    let getDesc = (level) => "\\dot{T} \\ exponent =" + getTdotExponent(level).toString();
+    let getInfo = (level) => "\\dot{T}^{" + level + "}";
+    let getDesc = (_) => Localization.getUpgradeIncCustomExpDesc("\\dot{T}", 1);
     tDotExponent = theory.createUpgrade(7, rho, new ExponentialCost(10000, Math.log2(10**4)));
-    tDotExponent.getDescription = (_) => Utils.getMath(getDesc(tDotExponent.level));
+    tDotExponent.getDescription = (_) => getDesc(tDotExponent.level);
     tDotExponent.getInfo = (amount) => Utils.getMathTo(getInfo(tDotExponent.level), getInfo(tDotExponent.level + amount))
     tDotExponent.bought = (_) => theory.invalidatePrimaryEquation();
   }
