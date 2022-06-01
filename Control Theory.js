@@ -138,7 +138,7 @@ var init = () => {
   {
     let getDesc = (level) => "c_1= "+ C1Base + "^{" + level + "}";
     let getInfo = (level) => "c_1=" + getC1(level).toString(0);
-    c1 = theory.createUpgrade(1, rho, new ExponentialCost(3000, Math.log2(10)));
+    c1 = theory.createUpgrade(1, rho, new ExponentialCost(3000, Math.log2(18)));
     c1.getDescription = (_) => Utils.getMath(getDesc(c1.level));
     c1.getInfo = (amount) => Utils.getMathTo(getInfo(c1.level), getInfo(c1.level + amount));
   }
