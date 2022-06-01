@@ -384,9 +384,9 @@ var init = () => {
     let bonus = theory.publicationMultiplier;
 
     if (achievementMultiplierUpgrade.level > 0) bonus *= achievementMultiplier;
-    timer += dt;
-    if (timer > frequency && autoKickerEnabled == true) {
-      cycleEstimate = BigNumber.from(Math.abs(amplitude-T)/frequency);
+    timer += systemDt;
+    if (timer > frequency*10 && autoKickerEnabled == true) {
+      cycleEstimate = BigNumber.from(Math.abs(amplitude-T)/(timer/10));
       if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
       cycleR = BigNumber.ZERO;
       T = amplitude;
