@@ -32,7 +32,7 @@ td = 0.2;
 amplitude = 125;
 autoKickerEnabled = false;
 frequency = 1.2;
-
+C1Base = 3;
 var initialiseSystem = () => {
 timer = 0;
 T = BigNumber.from(100);
@@ -136,9 +136,9 @@ var init = () => {
 
   // c1
   {
-    let getDesc = (level) => "c_1= 1.5^{" + level + "}";
+    let getDesc = (level) => "c_1= "+ C1Base + "^{" + level + "}";
     let getInfo = (level) => "c_1=" + getC1(level).toString(0);
-    c1 = theory.createUpgrade(1, rho, new ExponentialCost(3000, Math.log2(8)));
+    c1 = theory.createUpgrade(1, rho, new ExponentialCost(3000, Math.log2(10)));
     c1.getDescription = (_) => Utils.getMath(getDesc(c1.level));
     c1.getInfo = (amount) => Utils.getMathTo(getInfo(c1.level), getInfo(c1.level + amount));
   }
@@ -169,7 +169,7 @@ var init = () => {
     tDotExponent.getInfo = (amount) => Utils.getMathTo(getInfo(tDotExponent.level), getInfo(tDotExponent.level + amount))
     tDotExponent.bought = (_) => theory.invalidatePrimaryEquation();
   }
-  systemDt = 0.01;
+  systemDt = 1;
   setPoint = 100;
 
   /////////////////////
@@ -391,27 +391,11 @@ var init = () => {
       cycleR = BigNumber.ZERO;
       T = amplitude;
       timer = 0;
-      output = 0;
+      integral = 0;
     }
 
-    error[2] = error[1];
-    error[1] = error[0];
-    error[0] = setPoint - T;
-    let A0 = kp +  (Math.abs(error[0]) <= getTolerance(toleranceReduction.level)) *kp/ti * (systemDt);
-    let A1 = -1 * kp;
-    let A0d = kp*td/(systemDt);
-    let A1d = - 2 * kp*td/(systemDt);
-    let A2d = kp*td/(systemDt);
-    let N = 5;
-    let timeConstant = td/N;
-    let alpha = (systemDt)/(2*timeConstant);
-    output = output + A0 * error[0] + (Math.abs(error[0]) <= getTolerance(toleranceReduction.level)) * A1 * error[1];
-    d1 = d0
-    d0 = A0d * error[0] + A1d * error[1] + A2d * error[2];
-    fd1 = fd0;
-    fd0 = ((alpha)/(alpha+1)) * (d1 + d0) - ((alpha - 1)/(alpha + 1)) * fd1
-    output = (output + (Math.abs(error[0]) <= getTolerance(toleranceReduction.level))*fd0);  
-
+    integral += (Math.abs(error[0]) < 15) * error[0]
+    output = kp * (error[0] + systemDt/ti * integral + td/systemDt * (error[0] - error[1]));
     if (output>100){
       valve = 1
     }
@@ -427,15 +411,15 @@ var init = () => {
     let prevT = T;
 
     if (valve > 0) {
-      T = Th + (T - Th) * BigNumber.E.pow(-1 * Math.abs(valve) * dt)
+      T = Th + (T - Th) * BigNumber.E.pow(-1 * Math.abs(valve) * systemDt)
     } else if (valve < 0) {
-      T = Tc + (T - Tc) * BigNumber.E.pow(-1 * Math.abs(valve) * dt)
+      T = Tc + (T - Tc) * BigNumber.E.pow(-1 * Math.abs(valve) * systemDt)
     }
 
-    let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level))*getR2(r2.level)/(1+Math.abs(error[0]));
+    let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level))*getR2(r2.level)/(1+Math.log10(1+Math.abs(error[0])));
     rEstimate = rEstimate * 0.95 + dr * 0.05;
     if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
-    dT = BigNumber.from((T - prevT) / dt).abs();
+    dT = BigNumber.from((T - prevT) / systemDt).abs();
 
     if (dt < frequency || !autoKickerEnabled) {
       r += dr * dt;
@@ -453,6 +437,8 @@ var init = () => {
       rho.value += r * BigNumber.from(value_c1 * cycleEstimate.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus;
     }
 
+    error[1] = error[0];
+    error[0] = setPoint - T;
     theory.invalidateTertiaryEquation();
   }
 }
@@ -472,7 +458,7 @@ var init = () => {
     result += "\\dot{T} = \\left\\{ \\begin{array}{cl} Q_{h} & : \\ u(t) > 0, \\ Q_h = " + Th +" - T \\\\ Q_{c} & : \\ u(t) < 0, \\ Q_c = T- "+ Tc + "  \\end{array} \\right.\\\\";
 
     result += "\\dot{\\rho} = r\\sqrt{c_1^{" + c1_exp +"}\\dot{T}^{" + getTdotExponent(tDotExponent.level) + "}}";
-    result += ", \\;\\dot{r} = \\frac{r_1^{"+ r1_exp +"} r_2}{1+\|e(t)\|}"
+    result += ", \\;\\dot{r} = \\frac{r_1^{"+ r1_exp +"} r_2}{1+\\log_{10}(1 + \|e(t)\|)}"
 
     result += "\\end{matrix}"
     return result;
@@ -502,7 +488,7 @@ var init = () => {
 var getC1Exp = (level) => BigNumber.from(1 + c1Exponent.level * 0.05);
 var getR1Exp = (level) => BigNumber.from(1 + r1Exponent.level * 0.05);
 
-var getC1 = (level) => BigNumber.from(1.5).pow(level);
+var getC1 = (level) => BigNumber.from(C1Base).pow(level);
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
 var getR2 = (level) => BigNumber.TWO.pow(level);
 var getTolerance = (level) => parseFloat(baseTolerance * BigNumber.TEN.pow(-parseInt(level)));
