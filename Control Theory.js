@@ -8,8 +8,8 @@ var id = "control_theory";
 var name = "Control Theory";
 var description = "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n To make progress, you will need to disturb T to change rho, however going over a certain threshold will reset your progress. You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_sp. \n \n The controller works by calculating the error, e(t) between T and the set point, T_sp. The controller used in this theory will be a PID -- proportional, integral and derivative controller. K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. The integral term sums up the past errors and attempts to minimise the error after t_i seconds. The derivative term attempts to predict the future error after t_d seconds based on the current derivative of e(t). At some point you will also be able to manually change the values k_p, t_i, t_d, and T_sp to explore the system more deeply and to improve rho gain.\n \n For this example, you will assume that this is a heating controller system. The PID controller will adjust the heater so that T reaches the set point. For the purpose of the simulation, u(t) will be considered as a percentage change, in the real world this would correspond to opening a valve to allow heating/cooling fluid to change the temperature. \n \n "; 
 var authors = "Gaunter#7599, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "1.4";
-var publicationExponent = 0.1;
+var version = "1.4.1";
+var publicationExponent = 0.2;
 var achievements;
 requiresGameVersion("1.4.29");
 // Currency
@@ -32,7 +32,7 @@ td = 0.2;
 amplitude = 125;
 autoKickerEnabled = false;
 frequency = 1.2;
-C1Base = 3;
+C1Base = 2.75;
 var initialiseSystem = () => {
 timer = 0;
 T = BigNumber.from(100);
@@ -57,7 +57,7 @@ publicationCount = 0;
 var c1, r1, r2, kickT, changePidValues, autoKick, achievementMultiplierUpgrade, tDotExponent;
 
 // Milestones
-var c1Exponent, r1Exponent, toleranceReduction;
+var c1Exponent, r1Exponent, c1BaseUpgrade;
 
 
 var init = () => {
@@ -67,7 +67,7 @@ var init = () => {
   /////////////////////
   // Milestone Upgrades
 
-  theory.setMilestoneCost(new LinearCost(10*publicationExponent, 25*publicationExponent));
+  theory.setMilestoneCost(new CustomCost(total => BigNumber.from(getCustomCost(total))));
   // T Autokick
   {
     autoKick = theory.createMilestoneUpgrade(0, 1);
@@ -91,10 +91,10 @@ var init = () => {
   }
 
   {
-    toleranceReduction = theory.createMilestoneUpgrade(3, 2);
-    toleranceReduction.getInfo = (level) => Utils.getMathTo("\\epsilon" , getTolerance(level));
-    toleranceReduction.getDescription = (level) => Utils.getMath("\\epsilon = " + getTolerance(level))
-    toleranceReduction.boughtOrRefunded = (_) => updateAvailability();
+    c1BaseUpgrade = theory.createMilestoneUpgrade(3, 2);
+    c1BaseUpgrade.getInfo = (_) => "Increases $c_1$ base by " + 0.125;
+    c1BaseUpgrade.getDescription = (_) => "$\\uparrow \\ c_1$ base by " + 0.125;
+    c1BaseUpgrade.boughtOrRefunded = (_) => updateAvailability();
   }
 
 
@@ -116,7 +116,7 @@ var init = () => {
 
   // Achievement Multiplier
   {
-    achievementMultiplierUpgrade = theory.createPermanentUpgrade(5, rho, new LinearCost (1e50, 0))
+    achievementMultiplierUpgrade = theory.createPermanentUpgrade(5, rho, new LinearCost (1e230, 0))
     achievementMultiplierUpgrade.maxLevel = 1;
     achievementMultiplierUpgrade.getDescription = (_) => "Achievement multiplier"
     achievementMultiplierUpgrade.getInfo = (_) => "Multiplies income by " + achievementMultiplier.toPrecision(3);
@@ -136,9 +136,9 @@ var init = () => {
 
   // c1
   {
-    let getDesc = (level) => "c_1= "+ C1Base + "^{" + level + "}";
-    let getInfo = (level) => "c_1=" + getC1(level).toString(0);
-    c1 = theory.createUpgrade(1, rho, new ExponentialCost(3000, Math.log2(18)));
+    let getDesc = (level) => "c_1= "+ (C1Base + c1BaseUpgrade.level * 0.125).toString() + "^{" + level + "}";
+    let getInfo = (level) => "c_1=" + getC1(level).toString();
+    c1 = theory.createUpgrade(1, rho, new ExponentialCost(1e5, Math.log2(18)));
     c1.getDescription = (_) => Utils.getMath(getDesc(c1.level));
     c1.getInfo = (amount) => Utils.getMathTo(getInfo(c1.level), getInfo(c1.level + amount));
   }
@@ -164,7 +164,7 @@ var init = () => {
   {
     let getInfo = (level) => "\\dot{T}^{" + level + "}";
     let getDesc = (_) => Localization.getUpgradeIncCustomExpDesc("\\dot{T}", 1);
-    tDotExponent = theory.createUpgrade(7, rho, new ExponentialCost(10000, Math.log2(10**4)));
+    tDotExponent = theory.createUpgrade(7, rho, new ExponentialCost(1e6, Math.log2(10**4)));
     tDotExponent.getDescription = (_) => getDesc(tDotExponent.level);
     tDotExponent.getInfo = (amount) => Utils.getMathTo(getInfo(tDotExponent.level), getInfo(tDotExponent.level + amount))
     tDotExponent.bought = (_) => theory.invalidatePrimaryEquation();
@@ -175,16 +175,16 @@ var init = () => {
   /////////////////////
   // Achievements
 
-  let achievement_category1 = theory.createAchievementCategory(0, "Temperature");
+  let achievement_category1 = theory.createAchievementCategory(0, "R");
   let achievement_category2 = theory.createAchievementCategory(1, "Milestones");
   let achievement_category3 = theory.createAchievementCategory(2, "Publications");
 
   achievements = [
 
     // Temperature
-    theory.createAchievement(0, achievement_category1, "Superheated", "Have T exceed 300.", () => T > BigNumber.from(300)),
-    theory.createAchievement(1, achievement_category1, "Sub-zero", "Have T plummet below 0.", () => T < BigNumber.from(0)),
-    theory.createAchievement(2, achievement_category1, "Absolute 0", "Have T plummet below -273.", () => T < BigNumber.from(-273)),
+    theory.createAchievement(0, achievement_category1, "R is for research", "Have r exceed 1e20.", () => r > BigNumber.from(1e20)),
+    theory.createAchievement(1, achievement_category1, "Bench-scale research", "Have r exceed 1e50", () => r < BigNumber.from(1e50)),
+    theory.createAchievement(2, achievement_category1, "Pilot-scale research", "Have r exceed 1e110", () => r < BigNumber.from(1e110)),
 
     // Milestones
     theory.createAchievement(3, achievement_category2, "Junior Engineer", "Reach 1e10τ.", () => theory.tau > BigNumber.from(1e10)),
@@ -209,14 +209,14 @@ var init = () => {
         count++
       }
     }
-    achievementMultiplier = 2 // Math.pow(2, (0.1*count));
+    achievementMultiplier = Math.pow(10, ((achievementMultiplierUpgrade.level > 0) * 0.1*count));
   }
 
   var updateAvailability = () => {
     kickT.isAvailable = autoKick.level == 0;
     c1Exponent.isAvailable  = autoKick.level >= 1;
     r1Exponent.isAvailable = autoKick.level >= 1;
-    toleranceReduction.isAvailable = autoKick.level >= 1
+    c1BaseUpgrade.isAvailable = autoKick.level >= 1 && c1Exponent.level >= 3 && r1Exponent.level >= 3;
   }
 
   var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency}`;
@@ -479,25 +479,27 @@ var init = () => {
     let result = "";
     result += "T =" + Math.fround(T).toPrecision(5);
     result += ",\\,T_{sp} =" + setPoint.toPrecision(3) + ",\\ e(t) = " + Math.fround(error[0]).toPrecision(3);
-    result += ",\\,\\epsilon =" + getTolerance(toleranceReduction.level);
+    result += ",\\,\\epsilon =" + getTolerance(c1BaseUpgrade.level);
     result += ",\\, r ="+ r;
     return result;
   }
 }
-
+var getCustomCost = (level) => {
+  if (level < 7) return level * 5 + 2;
+  else return level * 10 - 30;
+}
 var getC1Exp = (level) => BigNumber.from(1 + c1Exponent.level * 0.05);
 var getR1Exp = (level) => BigNumber.from(1 + r1Exponent.level * 0.05);
-
-var getC1 = (level) => BigNumber.from(C1Base).pow(level);
+var getC1 = (level) => BigNumber.from(C1Base + c1BaseUpgrade.level * 0.125).pow(level);
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
 var getR2 = (level) => BigNumber.TWO.pow(level);
 var getTolerance = (level) => parseFloat(baseTolerance * BigNumber.TEN.pow(-parseInt(level)));
 var getTdotExponent = (level) => 2 + level;
-var getPublicationMultiplier = (tau) => achievementMultiplier * tau/4;
-var getPublicationMultiplierFormula = (symbol) => (achievementMultiplier > 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times \\frac{" + symbol + "}{4}" : "\\frac{" + symbol + "}{4}");
+var getPublicationMultiplier = (tau) => achievementMultiplier * tau.pow(0.5)/2;
+var getPublicationMultiplierFormula = (symbol) => (achievementMultiplier > 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times \\frac{" + symbol + "^{0.5}}{2}" : "\\frac{" + symbol + "^{0.5}}{2}");
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
-var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(10), rho.symbol];
+var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(5), rho.symbol];
 var postPublish = () => {
   initialiseSystem();
   theory.invalidatePrimaryEquation();
