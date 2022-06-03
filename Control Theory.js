@@ -16,9 +16,9 @@ requiresGameVersion("1.4.29");
 var rho;
 
 // UI Variables
-var cycleEstimateText = Utils.getMath("\\text{Estimated cycle } \\dot{T} \\text{: } ");
+var cycleEstimateText = Utils.getMath("\\text{Average cycle } \\dot{T} \\text{: } ");
 var cycleEstimateLabel;
-var rEstimateText = Utils.getMath("\\text{Estimated cycle } \\dot{r} \\text{: } ");
+var rEstimateText = Utils.getMath("\\text{Average cycle } \\dot{r} \\text{: } ");
 var rEstimateLabel;
 
 
@@ -110,7 +110,7 @@ var init = () => {
 
   {
     rExponent = theory.createMilestoneUpgrade(6, 2);
-    rExponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r", 0.05);  }
+    rExponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r", 0.04);  }
     rExponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r", 0.1);
     rExponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation();
   }
@@ -468,14 +468,7 @@ var init = () => {
     }
 
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
-
-    if (dt < frequency){
-      rho.value += r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus; 
-    }
-    else if (cycleEstimate > 0 && autoKickerEnabled){
-      rho.value += r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * cycleEstimate.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus;
-    }
-
+    rho.value += r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus; 
     error[1] = error[0];
     error[0] = setPoint - T;
     theory.invalidateTertiaryEquation();
