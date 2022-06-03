@@ -109,7 +109,7 @@ var init = () => {
   }
 
   {
-    rExponent = theory.createMilestoneUpgrade(6, 3);
+    rExponent = theory.createMilestoneUpgrade(6, 2);
     rExponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r", 0.05);  }
     rExponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r", 0.1);
     rExponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation();
@@ -530,7 +530,7 @@ var getCustomCost = (level) => {
   else return level * 6  - 4;
 }
 var getC1Exp = (level) => BigNumber.from(1 + c1Exponent.level * 0.05);
-var getRExp = (level) => BigNumber.from(1 + rExponent.level * 0.05);
+var getRExp = (level) => BigNumber.from(1 + rExponent.level * 0.04);
 var getR1Exp = (level) => BigNumber.from(1 + r1Exponent.level * 0.05);
 var getR2Exp = (level) => BigNumber.from(1 + r2Exponent.level * r2ExponentScale);
 var getC1 = (level) => BigNumber.from(C1Base + c1BaseUpgrade.level * 0.25).pow(level);
