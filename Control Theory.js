@@ -459,14 +459,7 @@ var init = () => {
     rEstimate = rEstimate * 0.95 + dr * 0.05;
     if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
     dT = BigNumber.from((T - prevT) / systemDt).abs();
-
-    if (dt < frequency || !autoKickerEnabled) {
-      r += dr * dt;
-    }
-    else if (autoKickerEnabled){
-      r += rEstimate*dt;
-    }
-
+    r += dr * dt;
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
     rho.value += r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus; 
     error[1] = error[0];
