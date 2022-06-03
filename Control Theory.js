@@ -8,7 +8,7 @@ var id = "temperature_control";
 var name = "Temperature Control";
 var description = "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n To make progress, you will need to disturb T to change rho, however going over a certain threshold will reset your progress. You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_sp. \n \n The controller works by calculating the error, e(t) between T and the set point, T_sp. The controller used in this theory will be a PID -- proportional, integral and derivative controller. K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. The integral term sums up the past errors and attempts to minimise the error after t_i seconds. The derivative term attempts to predict the future error after t_d seconds based on the current derivative of e(t). At some point you will also be able to manually change the values k_p, t_i, t_d, and T_sp to explore the system more deeply and to improve rho gain.\n \n For this example, you will assume that this is a heating controller system. The PID controller will adjust the heater so that T reaches the set point. For the purpose of the simulation, u(t) will be considered as a percentage change, in the real world this would correspond to opening a valve to allow heating/cooling fluid to change the temperature. \n \n "; 
 var authors = "Gaunter#7599, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "1.4.4";
+var version = "1.4.5";
 var publicationExponent = 0.2;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -33,7 +33,7 @@ amplitude = 125;
 autoKickerEnabled = false;
 frequency = 1.2;
 C1Base = 2.75;
-r2ExponentScale = 0.06;
+r2ExponentScale = 0.03;
 var initialiseSystem = () => {
 timer = 0;
 T = BigNumber.from(100);
@@ -96,15 +96,15 @@ var init = () => {
     unlockR3.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
   {
-    r2Exponent = theory.createMilestoneUpgrade(4, 1);
+    r2Exponent = theory.createMilestoneUpgrade(4, 2);
     r2Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r_2", r2ExponentScale);
     r2Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r_2", r2ExponentScale);
     r2Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
   {
-    c1BaseUpgrade = theory.createMilestoneUpgrade(5, 1);
-    c1BaseUpgrade.getInfo = (_) => "Increases $c_1$ base by " + 0.25;
-    c1BaseUpgrade.getDescription = (_) => "$\\uparrow \\ c_1$ base by " + 0.25;
+    c1BaseUpgrade = theory.createMilestoneUpgrade(5, 2);
+    c1BaseUpgrade.getInfo = (_) => "Increases $c_1$ base by " + 0.125;
+    c1BaseUpgrade.getDescription = (_) => "$\\uparrow \\ c_1$ base by " + 0.125;
     c1BaseUpgrade.boughtOrRefunded = (_) => updateAvailability();
   }
 
@@ -140,10 +140,10 @@ var init = () => {
   }
   // Tdot exponent cap 
   {
-    exponentCap = theory.createPermanentUpgrade(7, rho, new CustomCost((level) => BigNumber.from(1e200).pow(2)*(BigNumber.from(1e50)).pow(level)));
-    exponentCap.getDescription = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 5)
-    exponentCap.getInfo = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 5)
-    exponentCap.bought = (_) => tDotExponent.maxLevel = 48 + exponentCap.level*5;
+    exponentCap = theory.createPermanentUpgrade(7, rho, new CustomCost((level) => BigNumber.TEN.pow(375)*(BigNumber.TEN.pow(57.5).pow(level))));
+    exponentCap.getDescription = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 6)
+    exponentCap.getInfo = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 6)
+    exponentCap.bought = (_) => tDotExponent.maxLevel = 48 + exponentCap.level*6;
     exponentCap.maxLevel = 7;
   }
 
@@ -243,7 +243,7 @@ var init = () => {
         count++
       }
     }
-    achievementMultiplier = Math.pow(10, ((achievementMultiplierUpgrade.level > 0) * 0.1*count));
+    achievementMultiplier = Math.pow(400, ((achievementMultiplierUpgrade.level > 0) * 0.05*count));
   }
 
   var updateAvailability = () => {
@@ -253,7 +253,7 @@ var init = () => {
     unlockR3.isAvailable = autoKick.level >= 1 && c1Exponent.level >= 3 && r1Exponent.level >= 3;
     r2Exponent.isAvailable = unlockR3.level > 0;
     c1BaseUpgrade.isAvailable = unlockR3.level > 0;
-    rExponent.isAvailable = r2Exponent.level >= 1 && c1BaseUpgrade.level >= 1;
+    rExponent.isAvailable = r2Exponent.level >= 2 && c1BaseUpgrade.level >= 2;
 
     r3.isAvailable = unlockR3.level > 0;
   }
@@ -512,14 +512,30 @@ var init = () => {
   }
 }
 var getCustomCost = (level) => {
-  if (level < 8) return level * 5 + 2;
-  else return level * 6  - 4;
+  let result = 1;
+  switch(level) {
+    case 0: result = 10; break;
+    case 1: result = 35; break;
+    case 2: result = 60; break;
+    case 3: result = 85; break;
+    case 4: result = 110; break;
+    case 5: result = 135; break;
+    case 6: result = 160; break;
+    case 7: result = 185; break;
+    case 8: result = 215; break;
+    case 9: result = 230; break;
+    case 10: result = 245; break;
+    case 11: result = 260; break;
+    case 12: result = 290; break;
+    case 13: result = 320; break;
+  }
+  return result*0.2;
 }
 var getC1Exp = (level) => BigNumber.from(1 + c1Exponent.level * 0.05);
 var getRExp = (level) => BigNumber.from(1 + rExponent.level * 0.04);
 var getR1Exp = (level) => BigNumber.from(1 + r1Exponent.level * 0.05);
 var getR2Exp = (level) => BigNumber.from(1 + r2Exponent.level * r2ExponentScale);
-var getC1 = (level) => BigNumber.from(C1Base + c1BaseUpgrade.level * 0.25).pow(level);
+var getC1 = (level) => BigNumber.from(C1Base + c1BaseUpgrade.level * 0.125).pow(level);
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
 var getR2 = (level) => BigNumber.TWO.pow(level + r2Exponent.level*r2ExponentScale);
 var getR3 = (level) => BigNumber.FIVE.pow(level);
