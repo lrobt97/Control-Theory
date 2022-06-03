@@ -8,7 +8,7 @@ var id = "temperature_control";
 var name = "Temperature Control";
 var description = "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n To make progress, you will need to disturb T to change rho, however going over a certain threshold will reset your progress. You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_sp. \n \n The controller works by calculating the error, e(t) between T and the set point, T_sp. The controller used in this theory will be a PID -- proportional, integral and derivative controller. K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. The integral term sums up the past errors and attempts to minimise the error after t_i seconds. The derivative term attempts to predict the future error after t_d seconds based on the current derivative of e(t). At some point you will also be able to manually change the values k_p, t_i, t_d, and T_sp to explore the system more deeply and to improve rho gain.\n \n For this example, you will assume that this is a heating controller system. The PID controller will adjust the heater so that T reaches the set point. For the purpose of the simulation, u(t) will be considered as a percentage change, in the real world this would correspond to opening a valve to allow heating/cooling fluid to change the temperature. \n \n "; 
 var authors = "Gaunter#7599, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "1.4.3";
+var version = "1.4.4";
 var publicationExponent = 0.2;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -33,7 +33,7 @@ amplitude = 125;
 autoKickerEnabled = false;
 frequency = 1.2;
 C1Base = 2.75;
-r2ExponentScale = 0.02;
+r2ExponentScale = 0.06;
 var initialiseSystem = () => {
 timer = 0;
 T = BigNumber.from(100);
@@ -55,11 +55,10 @@ achievementMultiplier = 1;
 publicationCount = 0;
 }
 // Upgrades
-var c1, r1, r2, kickT, changePidValues, autoKick, achievementMultiplierUpgrade, tDotExponent;
+var c1, r1, r2, r3, kickT, changePidValues, autoKick, exponentCap, achievementMultiplierUpgrade, tDotExponent;
 
 // Milestones
-var c1Exponent, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade;
-
+var c1Exponent, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade, unlockR3;
 
 var init = () => {
   rho = theory.createCurrency();
@@ -90,26 +89,31 @@ var init = () => {
     r1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r_1", "0.05");
     r1Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
-
   {
-    r2Exponent = theory.createMilestoneUpgrade(3, 3);
+    unlockR3 = theory.createMilestoneUpgrade(3, 1);
+    unlockR3.getDescription = (_) => Localization.getUpgradeAddTermDesc("r_3");
+    unlockR3.getInfo = (_) => Localization.getUpgradeAddTermInfo("r_3");
+    unlockR3.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+  }
+  {
+    r2Exponent = theory.createMilestoneUpgrade(4, 1);
     r2Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r_2", r2ExponentScale);
     r2Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r_2", r2ExponentScale);
     r2Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
-
   {
-    c1BaseUpgrade = theory.createMilestoneUpgrade(4, 2);
-    c1BaseUpgrade.getInfo = (_) => "Increases $c_1$ base by " + 0.125;
-    c1BaseUpgrade.getDescription = (_) => "$\\uparrow \\ c_1$ base by " + 0.125;
+    c1BaseUpgrade = theory.createMilestoneUpgrade(5, 1);
+    c1BaseUpgrade.getInfo = (_) => "Increases $c_1$ base by " + 0.25;
+    c1BaseUpgrade.getDescription = (_) => "$\\uparrow \\ c_1$ base by " + 0.25;
     c1BaseUpgrade.boughtOrRefunded = (_) => updateAvailability();
   }
 
   {
-    rExponent = theory.createMilestoneUpgrade(5, 2);
+    rExponent = theory.createMilestoneUpgrade(6, 2);
     rExponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r", 0.1);  }
     rExponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r", 0.1);
-    rExponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+    rExponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation();
+  }
 
   /////////////////////
   // Permanent Upgrades
@@ -129,11 +133,22 @@ var init = () => {
 
   // Achievement Multiplier
   {
-    achievementMultiplierUpgrade = theory.createPermanentUpgrade(5, rho, new CustomCost(_ => BigNumber.from(1e250).pow(2)));
+    achievementMultiplierUpgrade = theory.createPermanentUpgrade(6, rho, new CustomCost(_ => BigNumber.from(1e250).pow(2)));
     achievementMultiplierUpgrade.maxLevel = 1;
     achievementMultiplierUpgrade.getDescription = (_) => "Achievement multiplier"
     achievementMultiplierUpgrade.getInfo = (_) => "Multiplies income by " + achievementMultiplier.toPrecision(3);
   }
+  // Tdot exponent cap 
+  {
+    exponentCap = theory.createPermanentUpgrade(7, rho, new CustomCost((level) => BigNumber.from(1e200).pow(2)*(BigNumber.from(1e50)).pow(level)));
+    exponentCap.getDescription = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 5)
+    exponentCap.getInfo = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 5)
+    exponentCap.bought = (_) => tDotExponent.maxLevel = 48 + exponentCap.level*5;
+    exponentCap.maxLevel = 7;
+  }
+
+  /////////////////////
+  // Upgrades
 
   // Kick T
   {
@@ -142,10 +157,6 @@ var init = () => {
     kickT.getInfo = (_) => Utils.getMathTo("T=" + T, "T=125");
     kickT.bought = (_) => T = amplitude;
   }
-
-
-  /////////////////////
-  // Upgrades
 
   // c1
   {
@@ -173,12 +184,21 @@ var init = () => {
     r2.getDescription = (_) => Utils.getMath(getDesc(r2.level));
     r2.getInfo = (amount) => Utils.getMathTo(getInfo(r2.level), getInfo(r2.level + amount));
   }
+  // r3
+  {
+    let getDesc = (level) => "r_3= 5^{" + level + "}";
+    let getInfo = (level) => "r_3=" + getR3(level).toString(0);
+    r3 = theory.createUpgrade(4, rho, new ExponentialCost(1e100, Math.log2(1e8)));
+    r3.getDescription = (_) => Utils.getMath(getDesc(r3.level));
+    r3.getInfo = (amount) => Utils.getMathTo(getInfo(r3.level), getInfo(r3.level + amount));
+    r3.isAvailable = unlockR3.level > 0;
+  }
   //Tdot exponent
   {
     let getInfo = (level) => "\\dot{T}^{" + level + "}";
     let getDesc = (_) => Localization.getUpgradeIncCustomExpDesc("\\dot{T}", 1);
-    tDotExponent = theory.createUpgrade(7, rho, new ExponentialCost(1e6, Math.log2(10**4)));
-    tDotExponent.maxLevel = 98;
+    tDotExponent = theory.createUpgrade(5, rho, new ExponentialCost(1e6, Math.log2(10**4)));
+    tDotExponent.maxLevel = 48;
     tDotExponent.getDescription = (_) => getDesc(tDotExponent.level);
     tDotExponent.getInfo = (amount) => Utils.getMathTo(getInfo(tDotExponent.level), getInfo(tDotExponent.level + amount))
     tDotExponent.bought = (_) => theory.invalidatePrimaryEquation();
@@ -230,9 +250,12 @@ var init = () => {
     kickT.isAvailable = autoKick.level == 0;
     c1Exponent.isAvailable  = autoKick.level >= 1;
     r1Exponent.isAvailable = autoKick.level >= 1;
-    r2Exponent.isAvailable = autoKick.level >= 1 && c1Exponent.level >= 3 && r1Exponent.level >= 3;
-    rExponent.isAvailable = autoKick.level >= 1 && c1Exponent.level >= 3 && r1Exponent.level >= 3;
-    c1BaseUpgrade.isAvailable = autoKick.level >= 1 && c1Exponent.level >= 3 && r1Exponent.level >= 3;
+    unlockR3.isAvailable = autoKick.level >= 1 && c1Exponent.level >= 3 && r1Exponent.level >= 3;
+    r2Exponent.isAvailable = unlockR3.level > 0;
+    c1BaseUpgrade.isAvailable = unlockR3.level > 0;
+    rExponent.isAvailable = r2Exponent.level >= 1 && c1BaseUpgrade.level >= 1;
+
+    r3.isAvailable = unlockR3.level > 0;
   }
 
   var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency}`;
@@ -432,7 +455,7 @@ var init = () => {
       T = Tc + (T - Tc) * BigNumber.E.pow(-1 * Math.abs(valve) * systemDt)
     }
 
-    let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level))*getR2(r2.level).pow(getR2Exp(r2Exponent.level))/(1+Math.log10(1+Math.abs(error[0])));
+    let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level))*getR2(r2.level).pow(getR2Exp(r2Exponent.level))*getR3((unlockR3.level > 0) * r3.level)/(1+Math.log10(1+Math.abs(error[0])));
     rEstimate = rEstimate * 0.95 + dr * 0.05;
     if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
     dT = BigNumber.from((T - prevT) / systemDt).abs();
@@ -472,10 +495,11 @@ var init = () => {
     let r_exp = rExponent.level > 0 ? getRExp(rExponent.level).toNumber() : "";
     let r1_exp = r1Exponent.level > 0 ? getR1Exp(r1Exponent.level).toNumber() : "";
     let r2_exp = r2Exponent.level > 0 ? getR2Exp(r2Exponent.level).toNumber() : "";
+    let r3_string = unlockR3.level > 0 ? "r_3": "";
     result += "\\dot{T} = \\left\\{ \\begin{array}{cl} Q_{h} & : \\ u(t) > 0, \\ Q_h = " + Th +" - T \\\\ Q_{c} & : \\ u(t) < 0, \\ Q_c = T- "+ Tc + "  \\end{array} \\right.\\\\";
 
     result += "\\dot{\\rho} = r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp +"}\\dot{T}^{" + getTdotExponent(tDotExponent.level) + "}}";
-    result += ", \\;\\dot{r} = \\frac{r_1^{"+ r1_exp +"} r_2^{"+ r2_exp +"}}{1+\\log_{10}(1 + \|e(t)\|)}"
+    result += ", \\;\\dot{r} = \\frac{r_1^{"+ r1_exp +"} r_2^{"+ r2_exp +"} "+ r3_string + "}{1+\\log_{10}(1 + \|e(t)\|)}"
 
     result += "\\end{matrix}"
     return result;
@@ -502,16 +526,17 @@ var init = () => {
   }
 }
 var getCustomCost = (level) => {
-  if (level < 7) return level * 5 + 2;
-  else return level * 10 - 30;
+  if (level < 8) return level * 5 + 2;
+  else return level * 6  - 4;
 }
 var getC1Exp = (level) => BigNumber.from(1 + c1Exponent.level * 0.05);
-var getRExp = (level) => BigNumber.from(1 + rExponent.level * 0.03);
+var getRExp = (level) => BigNumber.from(1 + rExponent.level * 0.05);
 var getR1Exp = (level) => BigNumber.from(1 + r1Exponent.level * 0.05);
 var getR2Exp = (level) => BigNumber.from(1 + r2Exponent.level * r2ExponentScale);
-var getC1 = (level) => BigNumber.from(C1Base + c1BaseUpgrade.level * 0.125).pow(level);
+var getC1 = (level) => BigNumber.from(C1Base + c1BaseUpgrade.level * 0.25).pow(level);
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
 var getR2 = (level) => BigNumber.TWO.pow(level + r2Exponent.level*r2ExponentScale);
+var getR3 = (level) => BigNumber.FIVE.pow(level);
 var getTolerance = (level) => parseFloat(baseTolerance * BigNumber.TEN.pow(-parseInt(level)));
 var getTdotExponent = (level) => 2 + level;
 var getPublicationMultiplier = (tau) => achievementMultiplier * tau.pow(0.5)/2;
