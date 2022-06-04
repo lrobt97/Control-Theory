@@ -572,10 +572,10 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
     timer += systemDt;
     if (timer > frequency*10 && autoKickerEnabled == true) {
       // Calculates the root mean square
-     // cycleEstimate = (cycleEstimate * frequency/systemDt).sqrt();
-    //  if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
-    //  cycleEstimate = BigNumber.ZERO;
-    //  cycleR = BigNumber.ZERO;
+      cycleEstimate = (cycleEstimate * frequency/systemDt).sqrt();
+      if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
+      cycleEstimate = BigNumber.ZERO;
+      cycleR = BigNumber.ZERO;
       T = amplitude;
       timer = 0;
       integral = 0;
@@ -604,22 +604,22 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
     }
 
     let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level))*getR3((unlockR3.level > 0) * r3.level)/(1+Math.log10(1+Math.abs(error[0])));
-  //  rEstimate = rEstimate * 0.95 + dr * 0.05;
+    rEstimate = rEstimate * 0.95 + dr * 0.05;
     dT = BigNumber.from((T - prevT) / systemDt).abs();
     if (dT > maximumPublicationTdot) maximumPublicationTdot = dT;
     // Required sum for root mean square calculation
-  //  cycleEstimate += dT.pow(2);
+    cycleEstimate += dT.pow(2);
     r += dr * dt;
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
     let dRho = r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * bonus; 
     rho.value += dt * dRho;
-   // rhoEstimate = rhoEstimate * 0.95 + dRho * 0.05;
+    rhoEstimate = rhoEstimate * 0.95 + dRho * 0.05;
     error[1] = error[0];
     error[0] = setPoint - T;
     // UI Updates
-    //if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
-    //if(maxTdotLabel) maxTdotLabel.text = maxTdotText + maximumPublicationTdot.toString();
-   // if(rhoEstimateLabel) rhoEstimateLabel.text = rhoEstimateText + rhoEstimate.toString();
+    if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
+    if(maxTdotLabel) maxTdotLabel.text = maxTdotText + maximumPublicationTdot.toString();
+    if(rhoEstimateLabel) rhoEstimateLabel.text = rhoEstimateText + rhoEstimate.toString();
     theory.invalidateTertiaryEquation();
   }
 }
