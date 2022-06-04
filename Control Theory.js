@@ -9,20 +9,21 @@ var name = "Temperature Control";
 var description = 
 "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n \
 \
-To make progress, you will need to disturb T to change rho, however going over a certain threshold will reset your progress. \
+To make progress, you will need to disturb T to change rho. \
 You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_sp. \
-\n \
+\n \n \
 The controller works by calculating the error, e(t) between T and the set point, T_sp. \
 The controller used in this theory will be a PID -- proportional, integral and derivative controller. \
 K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. \
-The integral term sums up the past errors and attempts to minimise the error after t_i seconds. The derivative term attempts to predict the future \
-error after t_d seconds based on the current derivative of e(t). At some point you will also be able to manually change the values k_p, t_i, t_d, \
+The integral term sums up the past errors and attempts to minimise the error after t_i seconds.\
+ The derivative term attempts to predict the future \error after t_d seconds based on the current derivative of e(t). \
+At some point you will also be able to manually change the values k_p, t_i, t_d, \
 and T_sp to explore the system more deeply and to improve rho gain.\n \n \
 \
-For this example, you will assume that this is a heating controller system. \
-The PID controller will adjust the heater so that T reaches the set point. \
-For the purpose of the simulation, u(t) will be considered as a percentage change, in the real world this would correspond to opening a valve \
-to allow heating/cooling fluid to change the temperature."; 
+In this theory, you will assume that this is a temperature control system. \
+The PID controller either heats the system to raise temperature, or cools the system to lower temperature. \
+This decision is based on the measured error e(t) and the output, u(t), is modelled as a percentage between -100% and 100%. \
+";
 
 var authors = "Gaunter#7599, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
 var version = "1.5";
@@ -33,14 +34,17 @@ requiresGameVersion("1.4.29");
 var rho;
 
 // UI Variables
+var maxTdotText = Utils.getMath("\\text{Max } \\dot{T} \\text{ in current publication: } ");
+var maxTdotLabel;
 var cycleEstimateText = Utils.getMath("\\text{Average cycle } \\dot{T} \\text{: } ");
 var cycleEstimateLabel;
 var rEstimateText = Utils.getMath("\\text{Average cycle } \\dot{r} \\text{: } ");
 var rEstimateLabel;
-
+var rhoEstimateText = Utils.getMath("\\text{Average cycle } \\dot{\\rho} \\text{: } ");
+var rhoEstimateLabel;
 
 // System variables
-var Tc, Th, d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
+var rhoEstimate, Tc, Th, d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
 kp = 1;
 cycleEstimate = BigNumber.ZERO;
 rEstimate = BigNumber.ZERO;
@@ -51,6 +55,7 @@ autoKickerEnabled = false;
 frequency = 1.2;
 C1Base = 2.75;
 r2ExponentScale = 0.03;
+var maximumPublicationTdot;
 var initialiseSystem = () => {
 timer = 0;
 T = BigNumber.from(100);
@@ -67,9 +72,11 @@ fd0 = 0;
 Tc = 30;
 Th = 200;
 rEstimate = BigNumber.ZERO;
+rhoEstimate = BigNumber.ZERO;
 baseTolerance = 5;
 achievementMultiplier = 1;
 publicationCount = 0;
+maximumPublicationTdot = BigNumber.ZERO;
 }
 // Upgrades
 var c1, r1, r2, r3, kickT, changePidValues, autoKick, exponentCap, achievementMultiplierUpgrade, tDotExponent;
@@ -92,6 +99,7 @@ var init = () => {
     autoKick.getDescription = (_) => "Automatically adjust T";
     autoKick.getInfo = (_) => "Automatically adjusts T";
     autoKick.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+    autoKick.canBeRefunded = () => false;
   }
   {
     c1Exponent = theory.createMilestoneUpgrade(1, 3);
@@ -111,18 +119,21 @@ var init = () => {
     unlockR3.getDescription = (_) => Localization.getUpgradeAddTermDesc("r_3");
     unlockR3.getInfo = (_) => Localization.getUpgradeAddTermInfo("r_3");
     unlockR3.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+    unlockR3.canBeRefunded = () => false;
   }
   {
     r2Exponent = theory.createMilestoneUpgrade(4, 2);
     r2Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r_2", r2ExponentScale);
     r2Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r_2", r2ExponentScale);
     r2Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+    r2Exponent.canBeRefunded = () => rExponent.level == 0;
   }
   {
     c1BaseUpgrade = theory.createMilestoneUpgrade(5, 2);
     c1BaseUpgrade.getInfo = (_) => "Increases $c_1$ base by " + 0.125;
     c1BaseUpgrade.getDescription = (_) => "$\\uparrow \\ c_1$ base by " + 0.125;
     c1BaseUpgrade.boughtOrRefunded = (_) => updateAvailability();
+    c1BaseUpgrade.canBeRefunded = () => rExponent.level == 0;
   }
 
   {
@@ -229,7 +240,8 @@ var init = () => {
   let achievement_category1 = theory.createAchievementCategory(0, "R");
   let achievement_category2 = theory.createAchievementCategory(1, "Milestones");
   let achievement_category3 = theory.createAchievementCategory(2, "Publications");
-  let achievement_category4 = theory.createAchievementCategory(3, "Challenges");
+  let achievement_category4 = theory.createAchievementCategory(3, "Challenges (1e100τ+)");
+  let achievement_category5 = theory.createAchievementCategory(4, "Challenges (1e120τ+)");
   achievements = [
 
     // Temperature
@@ -248,14 +260,21 @@ var init = () => {
     theory.createAchievement(8, achievement_category3, "R&D Engineer", "Publish 10 times.", () => publicationCount >= 10),
     theory.createAchievement(9, achievement_category3, "\"That's Dr., not Mr.\"", "Publish 25 times.", () => publicationCount >= 25),
 
-    // rho challenges
-    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e200 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e200) && tDotExponent.level == 0)),
-    theory.createAchievement(11, achievement_category4, "You can upgrade that?", "Have ρ exceed 1e230 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e230) && tDotExponent.level == 0)),
-    theory.createAchievement(12, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e100 while r is still 1.", () => (rho.value > BigNumber.from(1e100) && r == BigNumber.ONE)),
-    theory.createAchievement(13, achievement_category4, "Does 'r' actually do anything?", "Have ρ exceed 1e120 while r is still 1.", () => (rho.value > BigNumber.from(1e120) && r == BigNumber.ONE)),
+    // Challenges
 
-    // r challenges
+    // 1e100τ 
+    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e200 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e200) && tDotExponent.level == 0)),
+    theory.createAchievement(11, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e100 while r is still 1.", () => (rho.value > BigNumber.from(1e100) && r == BigNumber.ONE)),
+    theory.createAchievement(12, achievement_category4, "Temperature Control Challenge 1", "Have ρ exceed 1e350 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e50 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
+    theory.createAchievement(13, achievement_category4, "Temperature Control Challenge 2", "Have ρ exceed 1e315 while keeping T dot below 10. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e15 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 10)),
+    theory.createAchievement(14, achievement_category4, "Optimisation Challenge 1", "Have ρ exceed 1e70 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e70) && (c1.level + r1.level + r2.level + r3.level) <= 25) && tDotExponent.level == 0),      
     
+    // 1e120τ
+    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e230 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e300)*1e30 && tDotExponent.level == 0)),
+    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e120 while r is still 1.", () => (rho.value > BigNumber.from(1e120) && r == BigNumber.ONE)), 
+    theory.createAchievement(17, achievement_category5, "Temperature Control Challenge 3", "Have ρ exceed 1e390 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e90 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
+    theory.createAchievement(18, achievement_category5, "Temperature Control Challenge 4", "Have ρ exceed 1e325 while keeping T dot below 5. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e25 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 5)),
+    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e75 within 20 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e75) && (c1.level + r1.level + r2.level + r3.level) <= 20) && tDotExponent.level == 0),      
   ];
   updateAvailability();
 }
@@ -343,10 +362,19 @@ However, there is still a bit more to be done. \n \
 The committee gasps. \n \
 You explain that reflecting on your past 'achievements', you believe you have found a way to make the system even more efficient. \n \
 They reply that they have high expectations for your future work. \n \
-The End. \n \
+The End \n \
 ? \
 ";
-theory.createStoryChapter(9, "The End", storychaper_10, () => theory.tau > BigNumber.from(1e100));
+theory.createStoryChapter(9, "The End?", storychaper_10, () => theory.tau > BigNumber.from(1e100));
+
+let storychaper_11 = 
+"You were able to make the system efficient beyond your wildest dreams. \n \
+You have achieved a high level of greatness. There are no more possibilities for improvement. \n \
+Now you just need to sit back and let the system run. \n \
+You are truly the master of Temperature Control. \n \
+The End \n \
+"
+theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achievementMultiplier >= 400);
 {
   // Internal
   var calculateAchievementMultiplier = () => {
@@ -371,7 +399,7 @@ theory.createStoryChapter(9, "The End", storychaper_10, () => theory.tau > BigNu
     r3.isAvailable = unlockR3.level > 0;
   }
 
-  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency}`;
+  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency} ${maximumPublicationTdot}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -391,6 +419,7 @@ theory.createStoryChapter(9, "The End", storychaper_10, () => theory.tau > BigNu
     if (values.length > 12) rEstimate = parseBigNumber(values[12]);
     if (values.length > 13) amplitude = parseFloat(values[13]);
     if (values.length > 14) frequency = parseFloat(values[14]);
+    if (values.length > 15) maximumPublicationTdot = parseBigNumber(values[15]);
   }
 
   var updatePidValues = () => {
@@ -407,14 +436,14 @@ theory.createStoryChapter(9, "The End", storychaper_10, () => theory.tau > BigNu
   var newSetPoint = setPoint;
 
 // Flag set to unlock the 'auto kicker'
-  var canGoToPreviousStage = () => autoKick.level > 0;
+var canGoToPreviousStage = () => autoKick.level > 0;
 // Flag set to unlock PID configuration
-  var canGoToNextStage = () => changePidValues.level > 0;
+var canGoToNextStage = () => changePidValues.level > 0;
 // Allows the user to reset post e100 tau for challenge runs
 var canResetStage = () => theory.tau > BigNumber.from(1e100);
 
   const createAutoKickerMenu = () => {
-    let amplitudeText = "Value to set T. Currently: ";
+    let amplitudeText = "Amplitude of T: ";
     let frequencyText = "Frequency in seconds: ";
     let amplitudeLabel, frequencyLabel;
     let amplitudeSlider, frequencySlider;
@@ -435,8 +464,10 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
             isToggled: () => autoKickerEnabled,
             onTouched: (e) => {if (e.type == TouchType.PRESSED) autoKickerEnabled = !autoKickerEnabled }
           }),
+          maxTdotLabel = ui.createLatexLabel({text: maxTdotText + maximumPublicationTdot.toString()}),
           cycleEstimateLabel = ui.createLatexLabel({text: cycleEstimateText  + cycleEstimate.toString()}),
           rEstimateLabel = ui.createLatexLabel({text: rEstimateText + rEstimate.toString()}),
+          rhoEstimateLabel = ui.createLatexLabel({text: rhoEstimateText + rhoEstimate.toString()}),
           ui.createButton({
             text: "Update",
             onClicked: () => {
@@ -470,7 +501,7 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
           kpSlider = ui.createSlider({
             value: Math.log10(kp),
             minimum: -2,
-            maximum: 2,
+            maximum: 1,
             onValueChanged: () => {
               kpTextLabel.text = Utils.getMath(kpText + Math.pow(10, kpSlider.value).toPrecision(2).toString());
               newKp = Math.pow(10, kpSlider.value);
@@ -479,7 +510,7 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
           tiTextLabel = ui.createLatexLabel({text: Utils.getMath(tiText + ti.toString())}),
           tiSlider = ui.createSlider({
             value: Math.log10(ti),
-            minimum: -2,
+            minimum: -1.5,
             maximum: 1,
             onValueChanged: () => {
               tiTextLabel.text = Utils.getMath(tiText + Math.pow(10, tiSlider.value).toPrecision(2).toString());
@@ -489,7 +520,7 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
           tdTextLabel = ui.createLatexLabel({text: Utils.getMath(tdText + td.toString())}),
           tdSlider = ui.createSlider({
             value: Math.log10(td),
-            minimum: -2,
+            minimum: -1.5,
             maximum: 1,
             onValueChanged: () => {
               tdTextLabel.text = Utils.getMath(tdText + Math.pow(10, tdSlider.value).toPrecision(2).toString());
@@ -527,6 +558,7 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
     c1.level = 0;
     r1.level = 0;
     r2.level = 0;
+    r3.level = 0;
     tDotExponent.level = 0;
     rho.value=BigNumber.ZERO;
     initialiseSystem();
@@ -540,8 +572,10 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
     if (achievementMultiplierUpgrade.level > 0) bonus *= achievementMultiplier;
     timer += systemDt;
     if (timer > frequency*10 && autoKickerEnabled == true) {
-      cycleEstimate = BigNumber.from(Math.abs(amplitude-T)/(timer/10));
+      // Calculates the root mean square
+      cycleEstimate = (cycleEstimate * frequency/systemDt).sqrt();
       if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
+      cycleEstimate = BigNumber.ZERO;
       cycleR = BigNumber.ZERO;
       T = amplitude;
       timer = 0;
@@ -572,13 +606,21 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
 
     let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level))*getR3((unlockR3.level > 0) * r3.level)/(1+Math.log10(1+Math.abs(error[0])));
     rEstimate = rEstimate * 0.95 + dr * 0.05;
-    if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
     dT = BigNumber.from((T - prevT) / systemDt).abs();
+    if (dT > maximumPublicationTdot) maximumPublicationTdot = dT;
+    // Required sum for root mean square calculation
+    cycleEstimate += dT.pow(2);
     r += dr * dt;
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
-    rho.value += r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * dt * bonus; 
+    let dRho = r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * bonus; 
+    rho.value += dt * dRho;
+    rhoEstimate = rhoEstimate * 0.95 + dRho * 0.05;
     error[1] = error[0];
     error[0] = setPoint - T;
+    // UI Updates
+    if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
+    if(maxTdotLabel) maxTdotLabel.text = maxTdotText + maximumPublicationTdot.toString();
+    if(rhoEstimateLabel) rhoEstimateLabel.text = rhoEstimateText + rhoEstimate.toString();
     theory.invalidateTertiaryEquation();
   }
 }
@@ -597,7 +639,7 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
     let r1_exp = r1Exponent.level > 0 ? getR1Exp(r1Exponent.level).toNumber() : "";
     let r2_exp = r2Exponent.level > 0 ? getR2Exp(r2Exponent.level).toNumber() : "";
     let r3_string = unlockR3.level > 0 ? "r_3": "";
-    result += "\\dot{T} = \\left\\{ \\begin{array}{cl} Q_{h} & : \\ u(t) > 0, \\ Q_h = " + Th +" - T \\\\ Q_{c} & : \\ u(t) < 0, \\ Q_c = T- "+ Tc + "  \\end{array} \\right.\\\\";
+    result += "\\dot{T} = \\left\\{ \\begin{array}{cl} u(t)Q_{h} & : \\ u(t) > 0, \\ Q_h = " + Th +" - T \\\\ u(t)Q_{c} & : \\ u(t) < 0, \\ Q_c = T- "+ Tc + "  \\end{array} \\right.\\\\";
 
     result += "\\dot{\\rho} = r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp +"}\\dot{T}^{" + getTdotExponent(tDotExponent.level) + "}}";
     result += ", \\;\\dot{r} = \\frac{r_1^{"+ r1_exp +"} r_2^{"+ r2_exp +"} "+ r3_string + "}{1+\\log_{10}(1 + \|e(t)\|)}"
@@ -642,7 +684,7 @@ var getCustomCost = (level) => {
     case 10: result = 245; break;
     case 11: result = 260; break;
     case 12: result = 290; break; // r exponent
-    case 13: result = 320; break;
+    case 13: result = 325; break;
   }
   return result*0.2;
 }
