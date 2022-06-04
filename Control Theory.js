@@ -6,9 +6,26 @@ import { Utils } from "../api/Utils";
 
 var id = "temperature_control";
 var name = "Temperature Control";
-var description = "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n To make progress, you will need to disturb T to change rho, however going over a certain threshold will reset your progress. You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_sp. \n \n The controller works by calculating the error, e(t) between T and the set point, T_sp. The controller used in this theory will be a PID -- proportional, integral and derivative controller. K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. The integral term sums up the past errors and attempts to minimise the error after t_i seconds. The derivative term attempts to predict the future error after t_d seconds based on the current derivative of e(t). At some point you will also be able to manually change the values k_p, t_i, t_d, and T_sp to explore the system more deeply and to improve rho gain.\n \n For this example, you will assume that this is a heating controller system. The PID controller will adjust the heater so that T reaches the set point. For the purpose of the simulation, u(t) will be considered as a percentage change, in the real world this would correspond to opening a valve to allow heating/cooling fluid to change the temperature. \n \n "; 
+var description = 
+"Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n \
+\
+To make progress, you will need to disturb T to change rho, however going over a certain threshold will reset your progress. \
+You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_sp. \
+\n \
+The controller works by calculating the error, e(t) between T and the set point, T_sp. \
+The controller used in this theory will be a PID -- proportional, integral and derivative controller. \
+K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. \
+The integral term sums up the past errors and attempts to minimise the error after t_i seconds. The derivative term attempts to predict the future \
+error after t_d seconds based on the current derivative of e(t). At some point you will also be able to manually change the values k_p, t_i, t_d, \
+and T_sp to explore the system more deeply and to improve rho gain.\n \n \
+\
+For this example, you will assume that this is a heating controller system. \
+The PID controller will adjust the heater so that T reaches the set point. \
+For the purpose of the simulation, u(t) will be considered as a percentage change, in the real world this would correspond to opening a valve \
+to allow heating/cooling fluid to change the temperature."; 
+
 var authors = "Gaunter#7599, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "1.4.5";
+var version = "1.5";
 var publicationExponent = 0.2;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -212,13 +229,13 @@ var init = () => {
   let achievement_category1 = theory.createAchievementCategory(0, "R");
   let achievement_category2 = theory.createAchievementCategory(1, "Milestones");
   let achievement_category3 = theory.createAchievementCategory(2, "Publications");
-
+  let achievement_category4 = theory.createAchievementCategory(3, "Challenges");
   achievements = [
 
     // Temperature
     theory.createAchievement(0, achievement_category1, "R is for research", "Have r exceed 1e20.", () => r > BigNumber.from(1e20)),
-    theory.createAchievement(1, achievement_category1, "Bench-scale research", "Have r exceed 1e50", () => r < BigNumber.from(1e50)),
-    theory.createAchievement(2, achievement_category1, "Pilot-scale research", "Have r exceed 1e110", () => r < BigNumber.from(1e110)),
+    theory.createAchievement(1, achievement_category1, "Bench-scale research", "Have r exceed 1e50", () => r > BigNumber.from(1e50)),
+    theory.createAchievement(2, achievement_category1, "Pilot-scale research", "Have r exceed 1e110", () => r > BigNumber.from(1e110)),
 
     // Milestones
     theory.createAchievement(3, achievement_category2, "Junior Engineer", "Reach 1e10τ.", () => theory.tau > BigNumber.from(1e10)),
@@ -230,10 +247,106 @@ var init = () => {
     theory.createAchievement(7, achievement_category3, "Research Intern", "Publish 5 times.", () => publicationCount >= 5),
     theory.createAchievement(8, achievement_category3, "R&D Engineer", "Publish 10 times.", () => publicationCount >= 10),
     theory.createAchievement(9, achievement_category3, "\"That's Dr., not Mr.\"", "Publish 25 times.", () => publicationCount >= 25),
+
+    // rho challenges
+    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e200 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e200) && tDotExponent.level == 0)),
+    theory.createAchievement(11, achievement_category4, "You can upgrade that?", "Have ρ exceed 1e230 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e230) && tDotExponent.level == 0)),
+    theory.createAchievement(12, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e100 while r is still 1.", () => (rho.value > BigNumber.from(1e100) && r == BigNumber.ONE)),
+    theory.createAchievement(13, achievement_category4, "Does 'r' actually do anything?", "Have ρ exceed 1e120 while r is still 1.", () => (rho.value > BigNumber.from(1e120) && r == BigNumber.ONE)),
+
+    // r challenges
+    
   ];
   updateAvailability();
 }
 
+////////////////////////////
+// Story Chapters
+
+// Unlocked at the beginning
+let storychapter_1 = 
+"You are currently working on a new system that will be used to control the temperature of your lab. \n \
+The only problem is you are struggling with the maths. \n \
+You decide to approach the mathematics department for help. \n \
+Unfortunately, the professor is not very friendly. They scoff at you because you are 'only' an engineering student.\n \
+Frustrated, you return to your lab and kick the system";
+theory.createStoryChapter(0, "Applied Mathematics", storychapter_1, () => c1.level == 0);
+
+// Unlocked after buying the first 'free' upgrade
+let storychapter_2 = 
+"You kick the system and it starts working. \n \
+You aren't sure what is happening but it seems to be generating something. \n \
+You notice this happens each time the temperature changes. \n \n \
+Perhaps this is some sort of chain reaction? You decide to investigate further.";
+theory.createStoryChapter(1, "Chain Reaction", storychapter_2, () => kickT.level > 0);
+
+// Unlocked after buying the first 'r1' upgrade
+let storychapter_3 =
+"After a bit more investigation you still aren't quite sure what is happening. \n \
+You decide to walk away and come back later. \n \
+When you return, you notice another variable is growing. \n \
+This seems to grow faster when the temperature is close to the set point. \n \
+You decide to call this variable 'r' to represent research.";
+theory.createStoryChapter(2, "Research", storychapter_3, () => r1.level > 0);
+
+// Unlocked after collecting the first milestone
+let storychapter_4 = 
+"You are making progress in your research, however your foot is beginning to get sore from the constant kicking. \n \
+You decide to visit the computer science department to help you out. \n \
+They provide you with a software package that can adjust the temperature of the system automatically.  \
+"
+theory.createStoryChapter(3, "Automation", storychapter_4, () => autoKick.level > 0);
+
+let storychapter_5 = 
+"The mathematics department is taking notice of your work. \n \
+They decide to help refine the maths of your system. \n \
+The mathematics professor while puzzled at first, eventually adds a new variable to your existing work. \n \
+\"That should make the numbers grow much faster! \" they exclaim! \
+";
+theory.createStoryChapter(4, "Refinement", storychapter_5, () => unlockR3.level >= 1);
+
+let storychaper_6 = 
+"The work of the mathematics professor was succesful. \n \
+However, the system has been pushed to its limits. \n \
+You notice that the motor is dangerously close to burning out. \n \
+For now, it's best to avoid increasing the exponent of the temperature change. \
+";
+theory.createStoryChapter(5, "Physical Limitations", storychaper_6, () => tDotExponent.level >= 48);
+
+let storychapter_7 =
+"After analysing the equation a bit more you come to a realisation. \n \
+\"I'm an engineer. I can round numbers!\" \n \
+Why didn't you notice this earlier? \n \
+You finally decide to round c1 up to 3. \
+";
+theory.createStoryChapter(6, "Rounding", storychapter_7, () => c1BaseUpgrade.level >= 2);
+
+let storychapter_8 = 
+"You believe you have explored all the theoretical, mathematical possibilities with the system. \n \
+You decide to take another look at the practical elements. \n \
+Remembering earlier that the motor was close to burning out, you apply for a more powerful motor. \n \
+The Dean of the university approves your request. They even offer to supply better motors if you show even more promising results \
+";
+theory.createStoryChapter(7, "De-bottlenecking", storychapter_8, () => exponentCap.level >= 1);
+
+let storychapter_9 = 
+"The Dean contacts you to let you know that the engineering world has taken note of your system. \n \
+They say that you have been nominated for an award for your work. \n \
+You decide to put some finishing touches on your work to impress the awards committee."
+theory.createStoryChapter(8, "Nomination", storychapter_9, () => theory.tau > BigNumber.from(1e90));
+
+let storychaper_10 = 
+"The awards committee was so impressed with your work that they decide to give you a prize. \n \
+You are asked to give a speech about your work. \n \
+You say that a lot of hard work has gone into this project. \n \
+However, there is still a bit more to be done. \n \
+The committee gasps. \n \
+You explain that reflecting on your past 'achievements', you believe you have found a way to make the system even more efficient. \n \
+They reply that they have high expectations for your future work. \n \
+The End. \n \
+? \
+";
+theory.createStoryChapter(9, "The End", storychaper_10, () => theory.tau > BigNumber.from(1e100));
 {
   // Internal
   var calculateAchievementMultiplier = () => {
@@ -263,7 +376,7 @@ var init = () => {
   var setInternalState = (state) => {
     debug = state;
     let values = state.split(" ");
-    if (values.length > 0) T = BigNumber.from(parseFloat(values[0]));
+    if (values.length > 0) T = parseFloat(values[0]);
     if (values.length > 1) error[0] = parseFloat(values[1]);
     if (values.length > 2) integral = parseFloat(values[2]);
     if (values.length > 3) kp = parseFloat(values[3]);
@@ -271,11 +384,11 @@ var init = () => {
     if (values.length > 5) td = parseFloat(values[5]);
     if (values.length > 6) valve = parseFloat(values[6]);
     if (values.length > 7) publicationCount = parseFloat(values[7])
-    if (values.length > 8) r = BigNumber.from(parseFloat(values[8]));
+    if (values.length > 8) r = parseBigNumber(values[8]);
     if (values.length > 9) autoKickerEnabled = values[9] == "true";
-    if (values.length > 10) cycleEstimate = BigNumber.from(parseFloat(values[10]));
+    if (values.length > 10) cycleEstimate = parseBigNumber(values[10]);
     if (values.length > 11) setPoint = parseFloat(values[11]);
-    if (values.length > 12) rEstimate = BigNumber.from(parseFloat(values[12]));
+    if (values.length > 12) rEstimate = parseBigNumber(values[12]);
     if (values.length > 13) amplitude = parseFloat(values[13]);
     if (values.length > 14) frequency = parseFloat(values[14]);
   }
@@ -297,6 +410,8 @@ var init = () => {
   var canGoToPreviousStage = () => autoKick.level > 0;
 // Flag set to unlock PID configuration
   var canGoToNextStage = () => changePidValues.level > 0;
+// Allows the user to reset post e100 tau for challenge runs
+var canResetStage = () => theory.tau > BigNumber.from(1e100);
 
   const createAutoKickerMenu = () => {
     let amplitudeText = "Value to set T. Currently: ";
@@ -455,7 +570,7 @@ var init = () => {
       T = Tc + (T - Tc) * BigNumber.E.pow(-1 * Math.abs(valve) * systemDt)
     }
 
-    let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level))*getR2(r2.level).pow(getR2Exp(r2Exponent.level))*getR3((unlockR3.level > 0) * r3.level)/(1+Math.log10(1+Math.abs(error[0])));
+    let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level))*getR3((unlockR3.level > 0) * r3.level)/(1+Math.log10(1+Math.abs(error[0])));
     rEstimate = rEstimate * 0.95 + dr * 0.05;
     if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
     dT = BigNumber.from((T - prevT) / systemDt).abs();
@@ -514,19 +629,19 @@ var init = () => {
 var getCustomCost = (level) => {
   let result = 1;
   switch(level) {
-    case 0: result = 10; break;
+    case 0: result = 10; break; // autoKicker
     case 1: result = 35; break;
     case 2: result = 60; break;
     case 3: result = 85; break;
     case 4: result = 110; break;
     case 5: result = 135; break;
     case 6: result = 160; break;
-    case 7: result = 185; break;
+    case 7: result = 185; break; // r3
     case 8: result = 215; break;
     case 9: result = 230; break;
     case 10: result = 245; break;
     case 11: result = 260; break;
-    case 12: result = 290; break;
+    case 12: result = 290; break; // r exponent
     case 13: result = 320; break;
   }
   return result*0.2;
