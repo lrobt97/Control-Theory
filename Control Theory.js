@@ -26,7 +26,7 @@ This decision is based on the measured error e(t) and the output, u(t), is model
 ";
 
 var authors = "Gaunter#7599, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "1.5";
+var version = "1.5.1";
 var publicationExponent = 0.2;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -115,33 +115,33 @@ var init = () => {
     r1Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
   {
-    unlockR3 = theory.createMilestoneUpgrade(3, 1);
-    unlockR3.getDescription = (_) => Localization.getUpgradeAddTermDesc("r_3");
-    unlockR3.getInfo = (_) => Localization.getUpgradeAddTermInfo("r_3");
-    unlockR3.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
-    unlockR3.canBeRefunded = () => false;
-  }
-  {
-    r2Exponent = theory.createMilestoneUpgrade(4, 2);
+    r2Exponent = theory.createMilestoneUpgrade(3, 2);
     r2Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r_2", r2ExponentScale);
     r2Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r_2", r2ExponentScale);
     r2Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
-    r2Exponent.canBeRefunded = () => rExponent.level == 0;
+    r2Exponent.canBeRefunded = () => unlockR3.level == 0 && rExponent.level == 0;
   }
   {
-    c1BaseUpgrade = theory.createMilestoneUpgrade(5, 2);
+    c1BaseUpgrade = theory.createMilestoneUpgrade(4, 2);
     c1BaseUpgrade.getInfo = (_) => "Increases $c_1$ base by " + 0.125;
     c1BaseUpgrade.getDescription = (_) => "$\\uparrow \\ c_1$ base by " + 0.125;
     c1BaseUpgrade.boughtOrRefunded = (_) => updateAvailability();
-    c1BaseUpgrade.canBeRefunded = () => rExponent.level == 0;
+    c1BaseUpgrade.canBeRefunded = () => unlockR3.level == 0 && rExponent.level == 0;
   }
 
   {
-    rExponent = theory.createMilestoneUpgrade(6, 2);
+    rExponent = theory.createMilestoneUpgrade(5, 2);
     rExponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r", 0.04);  }
     rExponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r", 0.1);
     rExponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation();
   }
+  {
+    unlockR3 = theory.createMilestoneUpgrade(6, 1);
+    unlockR3.getDescription = (_) => Localization.getUpgradeAddTermDesc("r_3");
+    unlockR3.getInfo = (_) => Localization.getUpgradeAddTermInfo("r_3");
+    unlockR3.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+  }
+
 
   /////////////////////
   // Permanent Upgrades
@@ -288,7 +288,7 @@ let storychapter_1 =
 The only problem is you are struggling with the maths. \n \
 You decide to approach the mathematics department for help. \n \
 Unfortunately, the professor is not very friendly. They scoff at you because you are 'only' an engineering student.\n \
-Frustrated, you return to your lab and kick the system";
+Frustrated, you return to your lab and kick the system.";
 theory.createStoryChapter(0, "Applied Mathematics", storychapter_1, () => c1.level == 0);
 
 // Unlocked after buying the first 'free' upgrade
@@ -344,7 +344,7 @@ let storychapter_8 =
 "You believe you have explored all the theoretical, mathematical possibilities with the system. \n \
 You decide to take another look at the practical elements. \n \
 Remembering earlier that the motor was close to burning out, you apply for a more powerful motor. \n \
-The Dean of the university approves your request. They even offer to supply better motors if you show even more promising results \
+The Dean of the university approves your request. They even offer to supply better motors if you show even more promising results. \
 ";
 theory.createStoryChapter(7, "De-bottlenecking", storychapter_8, () => exponentCap.level >= 1);
 
@@ -391,11 +391,10 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     kickT.isAvailable = autoKick.level == 0;
     c1Exponent.isAvailable  = autoKick.level >= 1;
     r1Exponent.isAvailable = autoKick.level >= 1;
-    unlockR3.isAvailable = autoKick.level >= 1 && c1Exponent.level >= 3 && r1Exponent.level >= 3;
-    r2Exponent.isAvailable = unlockR3.level > 0;
-    c1BaseUpgrade.isAvailable = unlockR3.level > 0;
+    r2Exponent.isAvailable =  c1Exponent.level >= 3 && r1Exponent.level >= 3;
+    c1BaseUpgrade.isAvailable = c1Exponent.level >= 3 && r1Exponent.level >= 3;
     rExponent.isAvailable = r2Exponent.level >= 2 && c1BaseUpgrade.level >= 2;
-
+    unlockR3.isAvailable = rExponent.level >= 2;
     r3.isAvailable = unlockR3.level > 0;
   }
 
@@ -573,10 +572,10 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
     timer += systemDt;
     if (timer > frequency*10 && autoKickerEnabled == true) {
       // Calculates the root mean square
-      cycleEstimate = (cycleEstimate * frequency/systemDt).sqrt();
-      if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
-      cycleEstimate = BigNumber.ZERO;
-      cycleR = BigNumber.ZERO;
+     // cycleEstimate = (cycleEstimate * frequency/systemDt).sqrt();
+    //  if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
+    //  cycleEstimate = BigNumber.ZERO;
+    //  cycleR = BigNumber.ZERO;
       T = amplitude;
       timer = 0;
       integral = 0;
@@ -605,22 +604,22 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
     }
 
     let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level))*getR3((unlockR3.level > 0) * r3.level)/(1+Math.log10(1+Math.abs(error[0])));
-    rEstimate = rEstimate * 0.95 + dr * 0.05;
+  //  rEstimate = rEstimate * 0.95 + dr * 0.05;
     dT = BigNumber.from((T - prevT) / systemDt).abs();
     if (dT > maximumPublicationTdot) maximumPublicationTdot = dT;
     // Required sum for root mean square calculation
-    cycleEstimate += dT.pow(2);
+  //  cycleEstimate += dT.pow(2);
     r += dr * dt;
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
     let dRho = r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * bonus; 
     rho.value += dt * dRho;
-    rhoEstimate = rhoEstimate * 0.95 + dRho * 0.05;
+   // rhoEstimate = rhoEstimate * 0.95 + dRho * 0.05;
     error[1] = error[0];
     error[0] = setPoint - T;
     // UI Updates
-    if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
-    if(maxTdotLabel) maxTdotLabel.text = maxTdotText + maximumPublicationTdot.toString();
-    if(rhoEstimateLabel) rhoEstimateLabel.text = rhoEstimateText + rhoEstimate.toString();
+    //if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
+    //if(maxTdotLabel) maxTdotLabel.text = maxTdotText + maximumPublicationTdot.toString();
+   // if(rhoEstimateLabel) rhoEstimateLabel.text = rhoEstimateText + rhoEstimate.toString();
     theory.invalidateTertiaryEquation();
   }
 }
@@ -672,19 +671,19 @@ var getCustomCost = (level) => {
   let result = 1;
   switch(level) {
     case 0: result = 10; break; // autoKicker
-    case 1: result = 35; break;
+    case 1: result = 35; break; // r1Exponent and c1Exponent
     case 2: result = 60; break;
     case 3: result = 85; break;
-    case 4: result = 110; break;
-    case 5: result = 135; break;
-    case 6: result = 160; break;
-    case 7: result = 185; break; // r3
-    case 8: result = 215; break;
-    case 9: result = 230; break;
-    case 10: result = 245; break;
-    case 11: result = 260; break;
-    case 12: result = 290; break; // r exponent
-    case 13: result = 325; break;
+    case 4: result = 110; break; 
+    case 5: result = 120; break;
+    case 6: result = 130; break; 
+    case 7: result = 150; break; // r2Exponent and c1Base
+    case 8: result = 175; break;
+    case 9: result = 190; break;
+    case 10: result = 210; break;
+    case 11: result = 220; break; // rExponent
+    case 12: result = 240; break; 
+    case 13: result = 255; break; // r3
   }
   return result*0.2;
 }
