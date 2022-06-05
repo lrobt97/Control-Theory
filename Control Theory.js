@@ -26,7 +26,7 @@ This decision is based on the measured error e(t) and the output, u(t), is model
 ";
 
 var authors = "Gaunter#7599, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "1.5.1";
+var version = "1.5.2";
 var publicationExponent = 0.2;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -168,11 +168,23 @@ var init = () => {
   }
   // Tdot exponent cap 
   {
-    exponentCap = theory.createPermanentUpgrade(7, rho, new CustomCost((level) => BigNumber.TEN.pow(375)*(BigNumber.TEN.pow(57.5).pow(level))));
+    exponentCap = theory.createPermanentUpgrade(7, rho, new CustomCost((level) => {
+      switch(level) {
+        case 0: return BigNumber.from(1e300);
+        case 1: return BigNumber.from(1e300)*1e50;
+        case 2: return BigNumber.from(1e300)*1e95;
+        case 3: return BigNumber.from(1e300)*1e135;
+        case 4: return BigNumber.from(1e300)*1e175;
+        case 5: return BigNumber.from(1e300)*1e240;
+        case 6: return BigNumber.from(1e300)*1e285;
+        default: return BigNumber.from(1e280)*BigNumber.TEN.pow(50*level);
+    }
+  }
+      ));
     exponentCap.getDescription = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 6)
     exponentCap.getInfo = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 6)
-    exponentCap.bought = (_) => tDotExponent.maxLevel = 48 + exponentCap.level*6;
-    exponentCap.maxLevel = 7;
+    exponentCap.maxLevel = 10;
+    exponentCap.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
 
   /////////////////////
@@ -214,9 +226,9 @@ var init = () => {
   }
   // r3
   {
-    let getDesc = (level) => "r_3= 5^{" + level + "}";
-    let getInfo = (level) => "r_3=" + getR3(level).toString(0);
-    r3 = theory.createUpgrade(4, rho, new ExponentialCost(1e100, Math.log2(1e8)));
+    let getDesc = (level) => "r_3= e^{" + level + "}";
+    let getInfo = (level) => "r_3=" + getR3(level).toString(2);
+    r3 = theory.createUpgrade(4, rho, new ExponentialCost(1e180, Math.log2(1e5)));
     r3.getDescription = (_) => Utils.getMath(getDesc(r3.level));
     r3.getInfo = (amount) => Utils.getMathTo(getInfo(r3.level), getInfo(r3.level + amount));
     r3.isAvailable = unlockR3.level > 0;
@@ -226,7 +238,7 @@ var init = () => {
     let getInfo = (level) => "\\dot{T}^{" + level + "}";
     let getDesc = (_) => Localization.getUpgradeIncCustomExpDesc("\\dot{T}", 1);
     tDotExponent = theory.createUpgrade(5, rho, new ExponentialCost(1e6, Math.log2(10**4)));
-    tDotExponent.maxLevel = 48;
+    tDotExponent.maxLevel = 48 + exponentCap.level*5;
     tDotExponent.getDescription = (_) => getDesc(tDotExponent.level);
     tDotExponent.getInfo = (amount) => Utils.getMathTo(getInfo(tDotExponent.level), getInfo(tDotExponent.level + amount))
     tDotExponent.bought = (_) => theory.invalidatePrimaryEquation();
@@ -263,18 +275,18 @@ var init = () => {
     // Challenges
 
     // 1e100τ 
-    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e200 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e200) && tDotExponent.level == 0)),
-    theory.createAchievement(11, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e100 while r is still 1.", () => (rho.value > BigNumber.from(1e100) && r == BigNumber.ONE)),
-    theory.createAchievement(12, achievement_category4, "Temperature Control Challenge 1", "Have ρ exceed 1e350 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e50 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
-    theory.createAchievement(13, achievement_category4, "Temperature Control Challenge 2", "Have ρ exceed 1e315 while keeping T dot below 10. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e15 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 10)),
+    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e185 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e185) && tDotExponent.level == 0)),
+    theory.createAchievement(11, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e110 while r is still 1.", () => (rho.value > BigNumber.from(1e110) && r == BigNumber.ONE)),
+    theory.createAchievement(12, achievement_category4, "Temperature Control Challenge 1", "Have ρ exceed 1e355 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e55 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
+    theory.createAchievement(13, achievement_category4, "Temperature Control Challenge 2", "Have ρ exceed 1e335 while keeping T dot below 10. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e35 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 10)),
     theory.createAchievement(14, achievement_category4, "Optimisation Challenge 1", "Have ρ exceed 1e70 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e70) && (c1.level + r1.level + r2.level + r3.level) <= 25) && tDotExponent.level == 0),      
     
     // 1e120τ
-    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e230 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e300)*1e30 && tDotExponent.level == 0)),
-    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e120 while r is still 1.", () => (rho.value > BigNumber.from(1e120) && r == BigNumber.ONE)), 
-    theory.createAchievement(17, achievement_category5, "Temperature Control Challenge 3", "Have ρ exceed 1e390 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e90 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
-    theory.createAchievement(18, achievement_category5, "Temperature Control Challenge 4", "Have ρ exceed 1e325 while keeping T dot below 5. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e25 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 5)),
-    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e75 within 20 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e75) && (c1.level + r1.level + r2.level + r3.level) <= 20) && tDotExponent.level == 0),      
+    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e230 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e230) && tDotExponent.level == 0)),
+    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e124 while r is still 1.", () => (rho.value > BigNumber.from(1e124) && r == BigNumber.ONE)), 
+    theory.createAchievement(17, achievement_category5, "Temperature Control Challenge 3", "Have ρ exceed 1e435 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e135 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
+    theory.createAchievement(18, achievement_category5, "Temperature Control Challenge 4", "Have ρ exceed 1e340 while keeping T dot below 5. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300)*1e40 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 5)),
+    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e80 within 20 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e80) && (c1.level + r1.level + r2.level + r3.level) <= 20) && tDotExponent.level == 0),      
   ];
   updateAvailability();
 }
@@ -316,30 +328,34 @@ They provide you with a software package that can adjust the temperature of the 
 "
 theory.createStoryChapter(3, "Automation", storychapter_4, () => autoKick.level > 0);
 
-let storychapter_5 = 
-"The mathematics department is taking notice of your work. \n \
-They decide to help refine the maths of your system. \n \
-The mathematics professor while puzzled at first, eventually adds a new variable to your existing work. \n \
-\"That should make the numbers grow much faster! \" they exclaim! \
-";
-theory.createStoryChapter(4, "Refinement", storychapter_5, () => unlockR3.level >= 1);
-
-let storychaper_6 = 
-"The work of the mathematics professor was succesful. \n \
-However, the system has been pushed to its limits. \n \
-You notice that the motor is dangerously close to burning out. \n \
-For now, it's best to avoid increasing the exponent of the temperature change. \
-";
-theory.createStoryChapter(5, "Physical Limitations", storychaper_6, () => tDotExponent.level >= 48);
-
-let storychapter_7 =
+//c1Base milestone reaches level 2
+let storychapter_5 =
 "After analysing the equation a bit more you come to a realisation. \n \
 \"I'm an engineer. I can round numbers!\" \n \
 Why didn't you notice this earlier? \n \
 You finally decide to round c1 up to 3. \
 ";
-theory.createStoryChapter(6, "Rounding", storychapter_7, () => c1BaseUpgrade.level >= 2);
+theory.createStoryChapter(4, "Rounding", storychapter_5, () => c1BaseUpgrade.level >= 2);
 
+// T dot exponent max level reached
+let storychaper_6 = 
+"You suddenly hear a strange noise coming from the macihne. \n \
+The system has been pushed to its limits. \n \
+You notice that the motor is dangerously close to burning out. \n \
+For now, it's best to avoid increasing the exponent of the temperature change. \
+";
+theory.createStoryChapter(5, "Physical Limitations", storychaper_6, () => tDotExponent.level >= 48);
+
+// r3 unlocked
+let storychapter_7 = 
+"The mathematics department is taking notice of your work. \n \
+They decide to help refine the maths of your system. \n \
+The mathematics professor while puzzled at first, eventually adds a new variable to your existing work. \n \
+\"That should make the numbers grow much faster! \" they exclaim! \n \
+You aren't sure why mathematicians are obsessed with 'e' but you decide to go along with it.";
+theory.createStoryChapter(6, "Refinement", storychapter_7, () => unlockR3.level >= 1);
+
+// T dot exponent cap reached
 let storychapter_8 = 
 "You believe you have explored all the theoretical, mathematical possibilities with the system. \n \
 You decide to take another look at the practical elements. \n \
@@ -348,12 +364,14 @@ The Dean of the university approves your request. They even offer to supply bett
 ";
 theory.createStoryChapter(7, "De-bottlenecking", storychapter_8, () => exponentCap.level >= 1);
 
+// 1e90 tau
 let storychapter_9 = 
 "The Dean contacts you to let you know that the engineering world has taken note of your system. \n \
 They say that you have been nominated for an award for your work. \n \
 You decide to put some finishing touches on your work to impress the awards committee."
 theory.createStoryChapter(8, "Nomination", storychapter_9, () => theory.tau > BigNumber.from(1e90));
 
+// 1e100 tau
 let storychaper_10 = 
 "The awards committee was so impressed with your work that they decide to give you a prize. \n \
 You are asked to give a speech about your work. \n \
@@ -367,6 +385,7 @@ The End \n \
 ";
 theory.createStoryChapter(9, "The End?", storychaper_10, () => theory.tau > BigNumber.from(1e100));
 
+// All achievements unlocked
 let storychaper_11 = 
 "You were able to make the system efficient beyond your wildest dreams. \n \
 You have achieved a high level of greatness. There are no more possibilities for improvement. \n \
@@ -396,6 +415,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     rExponent.isAvailable = r2Exponent.level >= 2 && c1BaseUpgrade.level >= 2;
     unlockR3.isAvailable = rExponent.level >= 2;
     r3.isAvailable = unlockR3.level > 0;
+    tDotExponent.maxLevel = 48 + exponentCap.level*5;
   }
 
   var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency} ${maximumPublicationTdot}`;
@@ -572,10 +592,10 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
     timer += systemDt;
     if (timer > frequency*10 && autoKickerEnabled == true) {
       // Calculates the root mean square
-     // cycleEstimate = (cycleEstimate * frequency/systemDt).sqrt();
-    //  if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
-    //  cycleEstimate = BigNumber.ZERO;
-    //  cycleR = BigNumber.ZERO;
+      cycleEstimate = (cycleEstimate * frequency/systemDt).sqrt();
+      if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
+      cycleEstimate = BigNumber.ZERO;
+      cycleR = BigNumber.ZERO;
       T = amplitude;
       timer = 0;
       integral = 0;
@@ -604,22 +624,22 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
     }
 
     let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level))*getR3((unlockR3.level > 0) * r3.level)/(1+Math.log10(1+Math.abs(error[0])));
-  //  rEstimate = rEstimate * 0.95 + dr * 0.05;
+    rEstimate = rEstimate * 0.95 + dr * 0.05;
     dT = BigNumber.from((T - prevT) / systemDt).abs();
     if (dT > maximumPublicationTdot) maximumPublicationTdot = dT;
     // Required sum for root mean square calculation
-  //  cycleEstimate += dT.pow(2);
+    cycleEstimate += dT.pow(2);
     r += dr * dt;
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
     let dRho = r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * bonus; 
     rho.value += dt * dRho;
-   // rhoEstimate = rhoEstimate * 0.95 + dRho * 0.05;
+    rhoEstimate = rhoEstimate * 0.95 + dRho * 0.05;
     error[1] = error[0];
     error[0] = setPoint - T;
     // UI Updates
-    //if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
-    //if(maxTdotLabel) maxTdotLabel.text = maxTdotText + maximumPublicationTdot.toString();
-   // if(rhoEstimateLabel) rhoEstimateLabel.text = rhoEstimateText + rhoEstimate.toString();
+    if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
+    if(maxTdotLabel) maxTdotLabel.text = maxTdotText + maximumPublicationTdot.toString();
+    if(rhoEstimateLabel) rhoEstimateLabel.text = rhoEstimateText + rhoEstimate.toString();
     theory.invalidateTertiaryEquation();
   }
 }
@@ -694,7 +714,7 @@ var getR2Exp = (level) => BigNumber.from(1 + r2Exponent.level * r2ExponentScale)
 var getC1 = (level) => BigNumber.from(C1Base + c1BaseUpgrade.level * 0.125).pow(level);
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
 var getR2 = (level) => BigNumber.TWO.pow(level + r2Exponent.level*r2ExponentScale);
-var getR3 = (level) => BigNumber.FIVE.pow(level);
+var getR3 = (level) => BigNumber.E.pow(level);
 var getTolerance = (level) => parseFloat(baseTolerance * BigNumber.TEN.pow(-parseInt(level)));
 var getTdotExponent = (level) => 2 + level;
 var getPublicationMultiplier = (tau) => achievementMultiplier * tau.pow(0.5)/2;
