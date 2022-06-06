@@ -162,7 +162,7 @@ var init = () => {
   // Achievement Multiplier
   {
     achievementMultiplierUpgrade = theory.createPermanentUpgrade(6, rho, new CustomCost(_ => BigNumber.from(1e250).pow(2)));
-    achievementMultiplierUpgrade.maxLevel = 1;
+    achievementMultiplierUpgrade.maxLevel = 10;
     achievementMultiplierUpgrade.getDescription = (_) => "Achievement multiplier"
     achievementMultiplierUpgrade.getInfo = (_) => "Multiplies income by " + achievementMultiplier.toPrecision(3);
   }
@@ -170,14 +170,16 @@ var init = () => {
   {
     exponentCap = theory.createPermanentUpgrade(7, rho, new CustomCost((level) => {
       switch(level) {
-        case 0: return BigNumber.from(1e300);
-        case 1: return BigNumber.from(1e300)*1e50;
-        case 2: return BigNumber.from(1e300)*1e95;
-        case 3: return BigNumber.from(1e300)*1e135;
-        case 4: return BigNumber.from(1e300)*1e175;
-        case 5: return BigNumber.from(1e300)*1e240;
-        case 6: return BigNumber.from(1e300)*1e285;
-        default: return BigNumber.from(1e280)*BigNumber.TEN.pow(50*level);
+        case 0: return BigNumber.TEN.pow(325);
+        case 1: return BigNumber.TEN.pow(365);
+        case 2: return BigNumber.TEN.pow(405);
+        case 3: return BigNumber.TEN.pow(445);
+        case 4: return BigNumber.TEN.pow(480);
+        case 5: return BigNumber.TEN.pow(535);
+        case 6: return BigNumber.TEN.pow(575);
+        case 7: return BigNumber.TEN.pow(620);
+        case 8: return BigNumber.TEN.pow(660);
+        case 9: return BigNumber.TEN.pow(700);
     }
   }
       ));
