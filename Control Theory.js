@@ -467,6 +467,7 @@ var getEquationOverlay = () => {
       children: [
       ui.createImage({
        source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/release/1.6/auto_adjuster_icon.png"),
+        useTint: true,
         onTouched: (e) => {
           if (e.type.isReleased()){
             let autoKickMenu = createAutoKickerMenu();
@@ -492,6 +493,7 @@ var getEquationOverlay = () => {
         ],
       }),
       ui.createImage({
+        useTint: true,
         source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/release/1.6/pid_menu_icon.png"),
         onTouched: (e) => {
           if(e.type.isReleased()){
