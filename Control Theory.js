@@ -462,11 +462,11 @@ var canResetStage = () => theory.tau > BigNumber.from(1e100);
 
 var getEquationOverlay = () => {
   return ui.createGrid({
-    columnDefinitions: ["1*", "1*", "auto"],
+    columnDefinitions: ["1*", "3*", "1*"],
     columnSpacing: 0,
       children: [
       ui.createImage({
-        source: ImageSource.fromUri("https://cdn-icons-png.flaticon.com/128/1843/1843544.png"),
+       source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/release/1.6/auto_adjuster_icon.png"),
         onTouched: (e) => {
           if (e.type.isReleased()){
             let autoKickMenu = createAutoKickerMenu();
@@ -483,18 +483,16 @@ var getEquationOverlay = () => {
         isVisible: () => autoKickerEnabled,
         row: 0,
         column: 1,
-        horizontalOptions: LayoutOptions.CENTER_AND_EXPAND,
+        horizontalOptions: LayoutOptions.FILL_AND_EXPAND,
         verticalOptions: LayoutOptions.START,
         children: [
             autoTemperatureBar = ui.createProgressBar({
               progress: timer/frequency,
-              horizontalOptions: LayoutOptions.CENTER_AND_EXPAND,
-              verticalOptions: LayoutOptions.START,      
         }),
         ],
       }),
       ui.createImage({
-        source: ImageSource.fromUri("https://cdn-icons-png.flaticon.com/128/7082/7082602.png"),
+        source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/release/1.6/pid_menu_icon.png"),
         onTouched: (e) => {
           if(e.type.isReleased()){
             let pidMenu = createPidMenu();
@@ -612,16 +610,6 @@ var getEquationOverlay = () => {
     return menu;
   }
 
-  var goToNextStage = () => {
-    var pidMenu = createPidMenu();
-    pidMenu.show();
-  };
-
-  var goToPreviousStage = () => {
-    var autoKickMenu = createAutoKickerMenu();
-    autoKickMenu.show();
-  }
-
   var resetStage = () => {
     c1.level = 0;
     r1.level = 0;
@@ -639,7 +627,7 @@ var getEquationOverlay = () => {
     timer += systemDt;
     if (timer > frequency*10 && autoKickerEnabled == true) {
       // Calculates the root mean square
-      cycleEstimate = (cycleEstimate * frequency/systemDt).sqrt();
+      cycleEstimate = (cycleEstimate / (frequency/systemDt)).sqrt();
       if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
       cycleEstimate = BigNumber.ZERO;
       cycleR = BigNumber.ZERO;
