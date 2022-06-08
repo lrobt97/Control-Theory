@@ -565,6 +565,12 @@ var getEquationOverlay = () => {
       title: "Configure PID",
       content: ui.createStackLayout({
         children: [
+          ui.createLatexLabel({
+            horizontalTextAlignment: TextAlignment.CENTER,
+            verticalTextAlignment: TextAlignment.CENTER,
+            fontSize: 12,
+            text: Utils.getMath("\\begin{matrix} e(t) = T_{s} - T \\\\ u(t) = K_p(e(t) + \\frac{1}{t_i}\\int_{0}^{t}e(\\tau)d\\tau \\ + t_d \\dot{e(t)}) \\end{matrix}")
+          }),
           kpTextLabel = ui.createLatexLabel({text: Utils.getMath(kpText + kp.toString())}),
           kpSlider = ui.createSlider({
             value: Math.log10(kp),
@@ -637,15 +643,16 @@ var getEquationOverlay = () => {
       timer = 0;
       integral = 0;
     }
-    // autoTemperatureBar.progress = timer / (frequency);
-
+    autoTemperatureBar.progress = (timer<=frequency) * timer / (frequency);
+    error[1] = error[0];
+    error[0] = setPoint - T;
     integral += error[0];
-
+    let derivative = (error[0] - error[1])/systemDt;
     // Anti-windup scheme
     if (integral > 100) integral = 100;
     if (integral < -100) integral = -100;
-    output = kp * (error[0] + systemDt/ti * integral + td/systemDt * (error[0] - error[1]));
-    log(integral);
+    if (Math.abs(error[0]) > 10) integral = 0;
+    output = kp * (error[0] + systemDt/ti * integral + td*derivative);
 
     // Output and integral clamping mechanism
     if (output>100){
@@ -681,12 +688,12 @@ var getEquationOverlay = () => {
     let dRho = r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * bonus; 
     rho.value += dt * dRho;
     rhoEstimate = rhoEstimate * 0.95 + dRho * 0.05;
-    error[1] = error[0];
-    error[0] = setPoint - T;
+
     // UI Updates
     if(rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
     if(maxTdotLabel) maxTdotLabel.text = maxTdotText + maximumPublicationTdot.toString();
     if(rhoEstimateLabel) rhoEstimateLabel.text = rhoEstimateText + rhoEstimate.toString();
+    theory.invalidateSecondaryEquation();
     theory.invalidateTertiaryEquation();
   }
 }
@@ -718,8 +725,8 @@ var getEquationOverlay = () => {
     let result = "\\begin{array}{c}";
     
     result += "e(t) = T_{s} - T \\\\";
-    result += "u(t) = K_p(e(t) + \\frac{1}{t_i}\\int_{0}^{t}e(\\tau)d\\tau \\ + t_d \\dot{e(t)})\\\\";
-    result += theory.latexSymbol + "=\\max\\rho^{"+publicationExponent+"} , \\ K_p =" + kp.toPrecision(2) + ",\\ t_i =" + ti.toPrecision(2) + ",\\ t_d =" + td.toPrecision(2);
+    result += "u(t) = " + valve.toString() + " \\\\";
+    result += theory.latexSymbol + "=\\max\\rho^{"+publicationExponent+"}";
     result += "\\end{array}"
     return result;
   }
