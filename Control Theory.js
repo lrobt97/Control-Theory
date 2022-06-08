@@ -26,7 +26,7 @@ This decision is based on the measured error e(t) and the output, u(t), is model
 ";
 
 var authors = "Gaunter#7599, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "1.6";
+var version = "1.6.1";
 var publicationExponent = 0.2;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -196,8 +196,8 @@ var init = () => {
   // Kick T
   {
     kickT = theory.createUpgrade(0, rho, new FreeCost())
-    kickT.getDescription = (_) => Utils.getMath("T=125");
-    kickT.getInfo = (_) => Utils.getMathTo("T=" + T, "T=125");
+    kickT.getDescription = (_) => Utils.getMath("\\text{Set T to } 125");
+    kickT.getInfo = (_) => Utils.getMath("T \\rightarrow 125");
     kickT.bought = (_) => T = amplitude;
   }
 
