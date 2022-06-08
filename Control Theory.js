@@ -10,15 +10,15 @@ var description =
 "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n \
 \
 To make progress, you will need to disturb T to change rho. \
-You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_sp. \
+You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_s. \
 \n \n \
-The controller works by calculating the error, e(t) between T and the set point, T_sp. \
+The controller works by calculating the error, e(t) between T and the set point, T_s. \
 The controller used in this theory will be a PID -- proportional, integral and derivative controller. \
 K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. \
 The integral term sums up the past errors and attempts to minimise the error after t_i seconds.\
  The derivative term attempts to predict the future \error after t_d seconds based on the current derivative of e(t). \
 At some point you will also be able to manually change the values k_p, t_i, t_d, \
-and T_sp to explore the system more deeply and to improve rho gain.\n \n \
+and T_s to explore the system more deeply and to improve rho gain.\n \n \
 \
 In this theory, you will assume that this is a temperature control system. \
 The PID controller either heats the system to raise temperature, or cools the system to lower temperature. \
@@ -246,7 +246,7 @@ var init = () => {
     tDotExponent.getInfo = (amount) => Utils.getMathTo(getInfo(tDotExponent.level), getInfo(tDotExponent.level + amount))
     tDotExponent.bought = (_) => theory.invalidatePrimaryEquation();
   }
-  systemDt = 1;
+  systemDt = 0.1;
   setPoint = 100;
 
   /////////////////////
@@ -493,7 +493,7 @@ var getEquationOverlay = () => {
         ],
       }),
       ui.createImage({
-        useTint: true,
+        useTint: false,
         source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/release/1.6/pid_menu_icon.png"),
         onTouched: (e) => {
           if(e.type.isReleased()){
@@ -558,7 +558,7 @@ var getEquationOverlay = () => {
     let kpText = "{K}_{p} = ";
     let tiText = "{t}_{i} = ";
     let tdText = "{t}_{d} = ";
-    let setPointText ="{T}_{sp} = "
+    let setPointText ="{T}_{s} = "
     let kpTextLabel, tiTextLabel, tdTextLabel, setPointTextLabel;
     let kpSlider, tiSlider, tdSlider, setPointSlider;
     let menu = ui.createPopup({
@@ -627,7 +627,7 @@ var getEquationOverlay = () => {
     let bonus = theory.publicationMultiplier;
     achievementMultiplier = calculateAchievementMultiplier();
     timer += systemDt;
-    if (timer > frequency*10 && autoKickerEnabled == true) {
+    if (timer > frequency && autoKickerEnabled == true) {
       // Calculates the root mean square
       cycleEstimate = (cycleEstimate / (frequency/systemDt)).sqrt();
       if(cycleEstimateLabel) cycleEstimateLabel.text = cycleEstimateText + cycleEstimate.toString();
@@ -637,15 +637,25 @@ var getEquationOverlay = () => {
       timer = 0;
       integral = 0;
     }
-    autoTemperatureBar.progress = timer / (10*frequency);
-    integral += (Math.abs(error[0]) < 15) * error[0]
+    // autoTemperatureBar.progress = timer / (frequency);
+
+    integral += error[0];
+
+    // Anti-windup scheme
+    if (integral > 100) integral = 100;
+    if (integral < -100) integral = -100;
     output = kp * (error[0] + systemDt/ti * integral + td/systemDt * (error[0] - error[1]));
+    log(integral);
+
+    // Output and integral clamping mechanism
     if (output>100){
       valve = 1
+      integral -= output - 100;
     }
     else if (output < -100)
     {
-      valve = -1
+      valve = -1;
+      integral += -100 - output;
     }
     else{
       valve = output/100;
@@ -695,11 +705,9 @@ var getEquationOverlay = () => {
     let r1_exp = r1Exponent.level > 0 ? getR1Exp(r1Exponent.level).toNumber() : "";
     let r2_exp = r2Exponent.level > 0 ? getR2Exp(r2Exponent.level).toNumber() : "";
     let r3_string = unlockR3.level > 0 ? "r_3": "";
-    result += "\\dot{T} = \\left\\{ \\begin{array}{cl} u(t)Q_{h} & : \\ u(t) > 0, \\ Q_h = " + Th +" - T \\\\ u(t)Q_{c} & : \\ u(t) < 0, \\ Q_c = T- "+ Tc + "  \\end{array} \\right.\\\\";
-
     result += "\\dot{\\rho} = r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp +"}\\dot{T}^{" + getTdotExponent(tDotExponent.level) + "}}";
-    result += ", \\;\\dot{r} = \\frac{r_1^{"+ r1_exp +"} r_2^{"+ r2_exp +"} "+ r3_string + "}{1+\\log_{10}(1 + \|e(t)\|)}"
-
+    result += "\\\\ \\dot{r} = \\frac{r_1^{"+ r1_exp +"} r_2^{"+ r2_exp +"} "+ r3_string + "}{1+\\log_{10}(1 + \|e(t)\|)}"
+    result += "\\\\ \\dot{T} = \\left\\{ \\begin{array}{cl} u(t)(" + Th +" - T) & : \\ u(t) > 0\\\\ u(t)(T - " + Tc +") & : \\ u(t) < 0 \\end{array} \\right.\\\\";
     result += "\\end{matrix}"
     return result;
   }
@@ -708,7 +716,8 @@ var getEquationOverlay = () => {
     theory.secondaryEquationHeight = 75;
     theory.secondaryEquationScale = 0.9;
     let result = "\\begin{array}{c}";
-    result += "e(t) = T_{sp} - T \\\\";
+    
+    result += "e(t) = T_{s} - T \\\\";
     result += "u(t) = K_p(e(t) + \\frac{1}{t_i}\\int_{0}^{t}e(\\tau)d\\tau \\ + t_d \\dot{e(t)})\\\\";
     result += theory.latexSymbol + "=\\max\\rho^{"+publicationExponent+"} , \\ K_p =" + kp.toPrecision(2) + ",\\ t_i =" + ti.toPrecision(2) + ",\\ t_d =" + td.toPrecision(2);
     result += "\\end{array}"
@@ -718,7 +727,7 @@ var getEquationOverlay = () => {
   var getTertiaryEquation = () => {
     let result = "";
     result += "T =" + Math.fround(T).toPrecision(5);
-    result += ",\\,T_{sp} =" + setPoint.toPrecision(3) + ",\\ e(t) = " + Math.fround(error[0]).toPrecision(3);
+    result += ",\\,T_{s} =" + setPoint.toPrecision(3) + ",\\ e(t) = " + Math.fround(error[0]).toPrecision(3);
     result += ",\\, r ="+ r;
     return result;
   }
@@ -751,7 +760,6 @@ var getC1 = (level) => BigNumber.from(C1Base + c1BaseUpgrade.level * 0.125).pow(
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
 var getR2 = (level) => BigNumber.TWO.pow(level + r2Exponent.level*r2ExponentScale);
 var getR3 = (level) => BigNumber.E.pow(level);
-var getTolerance = (level) => parseFloat(baseTolerance * BigNumber.TEN.pow(-parseInt(level)));
 var getTdotExponent = (level) => 2 + level;
 var getPublicationMultiplier = (tau) => achievementMultiplierUpgrade.level > 1 ? achievementMultiplier * tau.pow(0.5)/2 : tau.pow(0.5)/2;
 var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level > 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times \\frac{" + symbol + "^{0.5}}{2}" : "\\frac{" + symbol + "^{0.5}}{2}");
