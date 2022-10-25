@@ -184,9 +184,9 @@ var init = () => {
       }
     }
     ));
-    exponentCap.getDescription = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 6)
-    exponentCap.getInfo = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 6)
-    exponentCap.maxLevel = 10;
+    exponentCap.getDescription = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 2)
+    exponentCap.getInfo = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 2)
+    exponentCap.maxLevel = 8;
     exponentCap.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
 
@@ -238,10 +238,10 @@ var init = () => {
   }
   //Tdot exponent
   {
-    let getInfo = (level) => "\\dot{T}^{" + level + "}";
+    let getInfo = (level) => "\\dot{T}^{" + (level + 2) + "}";
     let getDesc = (_) => Localization.getUpgradeIncCustomExpDesc("\\dot{T}", 1);
     tDotExponent = theory.createUpgrade(5, rho, new ExponentialCost(1e15, Math.log2(7500)));
-    tDotExponent.maxLevel = 50 + exponentCap.level * 2;
+    tDotExponent.maxLevel = 30 + exponentCap.level*2;
     tDotExponent.getDescription = (_) => getDesc(tDotExponent.level);
     tDotExponent.getInfo = (amount) => Utils.getMathTo(getInfo(tDotExponent.level), getInfo(tDotExponent.level + amount))
     tDotExponent.bought = (_) => theory.invalidatePrimaryEquation();
@@ -418,7 +418,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     rExponent.isAvailable = r2Exponent.level >= 2 && c1BaseUpgrade.level >= 2;
     unlockR3.isAvailable = rExponent.level >= 2;
     r3.isAvailable = unlockR3.level > 0;
-    tDotExponent.maxLevel = 48 + exponentCap.level * 5;
+    tDotExponent.maxLevel = 30 + exponentCap.level * 2;
   }
 
   var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency} ${maximumPublicationTdot}`;
@@ -764,7 +764,7 @@ var getR1Exp = (level) => BigNumber.from(1 + r1Exponent.level * 0.05);
 var getR2Exp = (level) => BigNumber.from(1 + r2Exponent.level * r2ExponentScale);
 var getC1 = (level) => BigNumber.from(C1Base + c1BaseUpgrade.level * 0.125).pow(level);
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
-var getR2 = (level) => BigNumber.TWO.pow(level + r2Exponent.level * r2ExponentScale);
+var getR2 = (level) => BigNumber.TWO.pow(level);
 var getR3 = (level) => BigNumber.E.pow(level);
 var getTdotExponent = (level) => 2 + level;
 var getPublicationMultiplier = (tau) => achievementMultiplierUpgrade.level >= 1 ? achievementMultiplier * tau.pow(0.5) / 2 : tau.pow(0.5) / 2;
