@@ -241,7 +241,7 @@ var init = () => {
     let getInfo = (level) => "\\dot{T}^{" + (level + 2) + "}";
     let getDesc = (_) => Localization.getUpgradeIncCustomExpDesc("\\dot{T}", 1);
     tDotExponent = theory.createUpgrade(5, rho, new ExponentialCost(1e15, Math.log2(7500)));
-    tDotExponent.maxLevel = 30 + exponentCap.level*2;
+    tDotExponent.maxLevel = 50 + exponentCap.level*2;
     tDotExponent.getDescription = (_) => getDesc(tDotExponent.level);
     tDotExponent.getInfo = (amount) => Utils.getMathTo(getInfo(tDotExponent.level), getInfo(tDotExponent.level + amount))
     tDotExponent.bought = (_) => theory.invalidatePrimaryEquation();
@@ -278,17 +278,17 @@ var init = () => {
     // Challenges
 
     // 1e100τ 
-    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e185 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e185) && tDotExponent.level == 0)),
+    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e165 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e165) && tDotExponent.level == 0)),
     theory.createAchievement(11, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e110 while r is still 1.", () => (rho.value > BigNumber.from(1e110) && r == BigNumber.ONE)),
-    theory.createAchievement(12, achievement_category4, "Temperature Control Challenge 1", "Have ρ exceed 1e355 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) * 1e55 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
-    theory.createAchievement(13, achievement_category4, "Temperature Control Challenge 2", "Have ρ exceed 1e335 while keeping T dot below 10. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) * 1e35 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 10)),
+    theory.createAchievement(12, achievement_category4, "Temperature Control Challenge 1", "Have ρ exceed 1e300 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
+    theory.createAchievement(13, achievement_category4, "Temperature Control Challenge 2", "Have ρ exceed 1e245 while keeping T dot below 10. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e245) && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 10)),
     theory.createAchievement(14, achievement_category4, "Optimisation Challenge 1", "Have ρ exceed 1e70 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e70) && (c1.level + r1.level + r2.level + r3.level) <= 25) && tDotExponent.level == 0),
 
     // 1e120τ
     theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e230 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e230) && tDotExponent.level == 0)),
     theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e124 while r is still 1.", () => (rho.value > BigNumber.from(1e124) && r == BigNumber.ONE)),
-    theory.createAchievement(17, achievement_category5, "Temperature Control Challenge 3", "Have ρ exceed 1e435 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) * 1e135 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
-    theory.createAchievement(18, achievement_category5, "Temperature Control Challenge 4", "Have ρ exceed 1e340 while keeping T dot below 5. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) * 1e40 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 5)),
+    theory.createAchievement(17, achievement_category5, "Temperature Control Challenge 3", "Have ρ exceed 1e360 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) * 1e60 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
+    theory.createAchievement(18, achievement_category5, "Temperature Control Challenge 4", "Have ρ exceed 1e300 while keeping T dot below 10. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 5)),
     theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e80 within 20 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e80) && (c1.level + r1.level + r2.level + r3.level) <= 20) && tDotExponent.level == 0),
   ];
   updateAvailability();
@@ -406,7 +406,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
         count++
       }
     }
-    return Math.pow(50, 0.05 * count);
+    return Math.pow(30, 0.05 * count);
   }
 
   var updateAvailability = () => {
@@ -418,7 +418,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     rExponent.isAvailable = r2Exponent.level >= 2 && c1BaseUpgrade.level >= 2;
     unlockR3.isAvailable = rExponent.level >= 2;
     r3.isAvailable = unlockR3.level > 0;
-    tDotExponent.maxLevel = 30 + exponentCap.level * 2;
+    tDotExponent.maxLevel = 50 + exponentCap.level * 2;
   }
 
   var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency} ${maximumPublicationTdot}`;
