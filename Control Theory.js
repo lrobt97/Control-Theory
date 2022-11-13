@@ -466,7 +466,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
       columnSpacing: 0,
       children: [
         ui.createImage({
-          source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/release/1.6/auto_adjuster_icon.png"),
+          source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/main/auto_adjuster_icon.png"),
           useTint: true,
           onTouched: (e) => {
             if (e.type.isReleased()) {
@@ -494,7 +494,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
         }),
         ui.createImage({
           useTint: false,
-          source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/release/1.6/pid_menu_icon.png"),
+          source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/main/pid_menu_icon.png"),
           onTouched: (e) => {
             if (e.type.isReleased()) {
               let pidMenu = createPidMenu();
