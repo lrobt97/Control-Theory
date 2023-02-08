@@ -45,6 +45,17 @@ var rhoEstimateText = Utils.getMath("\\text{Average cycle } \\dot{\\rho} \\text{
 var rhoEstimateLabel;
 var autoTemperatureBar;
 
+// UI image size
+var getImageSize = (width) => {
+  if(width >= 1080)
+    return 48;
+  if(width >= 720)
+    return 36;
+  if(width >= 360)
+    return 24;
+  return 20;
+}
+
 // System variables
 var rhoEstimate, Tc, Th, d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
 kp = 1;
@@ -468,6 +479,9 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
         ui.createImage({
           source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/main/auto_adjuster_icon.png"),
           useTint: true,
+          widthRequest: getImageSize(ui.screenWidth),
+          heightRequest: getImageSize(ui.screenWidth),
+          aspect: Aspect.ASPECT_FILL,
           onTouched: (e) => {
             if (e.type.isReleased()) {
               let autoKickMenu = createAutoKickerMenu();
@@ -495,6 +509,9 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
         ui.createImage({
           useTint: false,
           source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/main/pid_menu_icon.png"),
+          widthRequest: getImageSize(ui.screenWidth),
+          heightRequest: getImageSize(ui.screenWidth),
+          aspect: Aspect.ASPECT_FILL,
           onTouched: (e) => {
             if (e.type.isReleased()) {
               let pidMenu = createPidMenu();
