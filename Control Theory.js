@@ -26,7 +26,7 @@ This decision is based on the measured error e(t) and the output, u(t), is model
 (Note that behind the scenes some more advanced features such as 'anti-windup' are taking place, feel free to read further into the subject if you are curious.)";
 
 var authors = "Gaunter#1337, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "1.6.2";
+var version = "1.6.3";
 var publicationExponent = 0.2;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -296,8 +296,8 @@ var init = () => {
     theory.createAchievement(14, achievement_category4, "Optimisation Challenge 1", "Have ρ exceed 1e70 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e70) && (c1.level + r1.level + r2.level + r3.level) <= 25) && tDotExponent.level == 0),
 
     // 1e120τ
-    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e230 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e230) && tDotExponent.level == 0)),
-    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e124 while r is still 1.", () => (rho.value > BigNumber.from(1e124) && r == BigNumber.ONE)),
+    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e190 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e190) && tDotExponent.level == 0)),
+    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e120 while r is still 1.", () => (rho.value > BigNumber.from(1e120) && r == BigNumber.ONE)),
     theory.createAchievement(17, achievement_category5, "Temperature Control Challenge 3", "Have ρ exceed 1e360 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) * 1e60 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
     theory.createAchievement(18, achievement_category5, "Temperature Control Challenge 4", "Have ρ exceed 1e300 while keeping T dot below 10. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 5)),
     theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e80 within 20 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e80) && (c1.level + r1.level + r2.level + r3.level) <= 20) && tDotExponent.level == 0),
@@ -586,7 +586,10 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
             horizontalTextAlignment: TextAlignment.CENTER,
             verticalTextAlignment: TextAlignment.CENTER,
             fontSize: 12,
-            text: Utils.getMath("\\begin{matrix} e(t) = T_{s} - T \\\\ u(t) = K_p(e(t) + \\frac{1}{t_i}\\int_{0}^{t}e(\\tau)d\\tau \\ + t_d \\dot{e(t)}) \\end{matrix}")
+            text: Utils.getMath("\\begin{matrix} \
+              e_n = T - T_{sp} \\\\ \
+              u(t) = K_p (e_n + \\frac{1}{t_i}\\sum_{0}^{n} ( e_i ) + t_d(e_n - e_{n-1})) \
+              \\end{matrix}")
           }),
           kpTextLabel = ui.createLatexLabel({ text: Utils.getMath(kpText + kp.toString()) }),
           kpSlider = ui.createSlider({
