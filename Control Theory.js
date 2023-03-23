@@ -589,7 +589,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
             text: Utils.getMath("\\begin{matrix} \
               e_n = T - T_{sp} \\\\ \
               u(t) = K_p (e_n + \\frac{1}{t_i}\\sum_{0}^{n} ( e_i ) + t_d(e_n - e_{n-1})) \
-              \s\end{matrix}")
+              \\end{matrix}")
           }),
           kpTextLabel = ui.createLatexLabel({ text: Utils.getMath(kpText + kp.toString()) }),
           kpSlider = ui.createSlider({
