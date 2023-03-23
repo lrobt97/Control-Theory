@@ -425,10 +425,10 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     c1Exponent.isAvailable = autoKick.level >= 1;
     r1Exponent.isAvailable = autoKick.level >= 1;
     r2Exponent.isAvailable = c1Exponent.level >= 3 && r1Exponent.level >= 3;
-    c1BaseUpgrade.isAvailable = c1Exponent.level >= 3 && r1Exponent.level >= 3;
-    rExponent.isAvailable = r2Exponent.level >= 2 && c1BaseUpgrade.level >= 2;
-    unlockR3.isAvailable = rExponent.level >= 2;
+    unlockR3.isAvailable = r2Exponent.level >= 2;
     r3.isAvailable = unlockR3.level > 0;
+    c1BaseUpgrade.isAvailable = c1Exponent.level >= 3 && r1Exponent.level >= 3;
+    rExponent.isAvailable = unlockR3.level >= 1 && c1BaseUpgrade.level >= 2;
     tDotExponent.maxLevel = 50 + exponentCap.level * 2;
   }
 
@@ -589,7 +589,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
             text: Utils.getMath("\\begin{matrix} \
               e_n = T - T_{sp} \\\\ \
               u(t) = K_p (e_n + \\frac{1}{t_i}\\sum_{0}^{n} ( e_i ) + t_d(e_n - e_{n-1})) \
-              \\end{matrix}")
+              \s\end{matrix}")
           }),
           kpTextLabel = ui.createLatexLabel({ text: Utils.getMath(kpText + kp.toString()) }),
           kpSlider = ui.createSlider({
