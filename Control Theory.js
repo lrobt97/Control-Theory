@@ -407,7 +407,7 @@ Now you just need to sit back and let the system run. \n \
 You are truly the master of Temperature Control. \n \
 The End \n \
 "
-theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achievementMultiplier >= 50);
+theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achievementMultiplier >= 30);
 {
   // Internal
   var calculateAchievementMultiplier = () => {
