@@ -349,7 +349,7 @@ let storychapter_5 =
 Why didn't you notice this earlier? \n \
 You finally decide to round c1 up to 3. \
 ";
-theory.createStoryChapter(4, "Rounding", storychapter_5, () => c1BaseUpgrade.level >= 2);
+theory.createStoryChapter(6, "Rounding", storychapter_5, () => c1BaseUpgrade.level >= 2);
 
 // T dot exponent max level reached
 let storychaper_6 =
@@ -367,7 +367,7 @@ They decide to help refine the maths of your system. \n \
 while puzzled at first, the mathematics professor eventually adds a new variable to your existing work. \n \
 \"That should make the numbers grow much faster!\" they exclaim! \n \
 You aren't sure why mathematicians are obsessed with 'e' but you decide to go along with it.";
-theory.createStoryChapter(6, "Refinement", storychapter_7, () => unlockR3.level >= 1);
+theory.createStoryChapter(4, "Refinement", storychapter_7, () => unlockR3.level >= 1);
 
 // T dot exponent cap reached
 let storychapter_8 =
