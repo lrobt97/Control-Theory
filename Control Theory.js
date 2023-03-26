@@ -68,6 +68,7 @@ autoKickerEnabled = false;
 frequency = 1.2;
 C1Base = 2.75;
 r2ExponentScale = 0.03;
+publicationCount = 0;
 var maximumPublicationTdot;
 var initialiseSystem = () => {
   timer = 0;
@@ -88,7 +89,6 @@ var initialiseSystem = () => {
   rhoEstimate = BigNumber.ZERO;
   baseTolerance = 5;
   achievementMultiplier = 1;
-  publicationCount = 0;
   maximumPublicationTdot = BigNumber.ZERO;
 }
 // Upgrades
