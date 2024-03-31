@@ -9,13 +9,11 @@ var name = "Temperature Control";
 var description =
   "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n  \
   \n \
-In this system, you have a 2×2×2 cm metal block which you must regulate the temperature of (ignoring any supports surrounding the block). \n \
-\n \
-To do this, you have a variable output heater with a maximum power rating of 20 kW. \n \
+You must regulate a 2×2×2 cm metal block using a variable output heater with a maximum power rating of 20 kW. \n \
 \n \
 The output of your PID system will be an integer between 0-512 (denoted by u(t) in the equation). This number will determine the output of the heater with 512 providing the maximum value \n \
 \n \
-An output of 0 allows the system to be air cooled under ambient conditions, with no heater output, which is assumed to be 30°C. \n \
+An output of 0 allows the system to be air cooled under ambient conditions (30°C), with no heater output. \n \
 \n \
 Eventually, you will be able to tune the controller for yourself. While doing so, you will face various constraints and challenges which you must overcome to progress within this custom theory."
 
@@ -598,15 +596,16 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
               ui.createLabel({
                 horizontalTextAlignment: TextAlignment.START,
                 text: "\
-              This menu is used to tweak the parameters of the PID controller - a mechanism that can automatically adjust the temperature to a given value.\n \
+              This menu is used to tweak the parameters of the PID controller - a mechanism that can automatically adjust the temperature to a given value (known as the setpoint).\n \
               \n \
-              This guide serves as an explanation for each of the following tuning parameters and gives a rough picture of how it affects the main system. Each cycle, the controller measures the error term, e(t), and passes it into the below equation. Because this measurement only happens at set intervals, rather than continously, the measurements are stored in a sequence known as e_n. \n \
+              This guide serves as an explanation for how the tuning parameters affect the main system. Each cycle, the controller measures the error term, e(t), and uses it in the below equation. Because this measurement only happens in discrete time intervals, the measurements are stored in the sequence e_n. \n \
+              The output of the equation is converted into an integer between 0 and 512. This means any negative values are capped at 0 and the upper limit is capped at 512. This output is used within the main equation of the system.\n \
               \n \
-              K_p: This refers to the proportional gain. Essentially, this term will provide a larger output with a greater difference between the temperature and the setpoint. If this is the only term set, you are likely to issue permament offset which means the controller does not recognise it needs to provide a higher output to achieve its goal. If this is set too high, it can cause the controller to become aggresive which means it overreacts to any small deviation.\n  \
+              K_p: This refers to the proportional gain. The output of this term scales in proportion to the measured error. Only using this term results in permament offset, which causes the controller to stop even though it hasn't hit the setpoint. If this is set too high, the controller becomes more aggresive which means it overreacts to any small deviation.\n  \
               \n \
-              K_i: This refers to the integral gain. This term allows the controller to calculate the sum of the previous errors and adjust the output to attempt to minimise them. With this term, you can prevent the offset T has with the setpoint that is present with just a proportional controller.\n \
+              K_i: This refers to the integral gain. This term allows the controller to calculate the sum of the previous errors and adjust the output to attempt to minimise them. This operation prevents the offset mentioned above, however setting the value too high can cause oscillations due to windup.\n \
               \n \
-              K_d: This refers to the differential gain. This term measures the rate of change in the error and attempts to adjust the output to minimise future errors. This can prevent overshoot, which allows T to settle at the setpoint without moving too far beyond.\n \
+              K_d: This refers to the differential gain. This term measures the rate of change in the error and attempts to adjust the output to minimise future errors. This can prevent overshoot, which allows T to settle at the setpoint without moving too far beyond. However, setting this term too high can lead to oscillations and instablity.\n \
               \n \
               T_s: This refers to the setpoint. The controller will try to manipulate the temperature towards this value. \
                 "
