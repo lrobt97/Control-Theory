@@ -7,21 +7,27 @@ import { TouchType } from "../api/UI/properties/TouchType";
 var id = "temperature_control";
 var name = "Temperature Control";
 var description =
-  "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n  \
-  \n \
-In this system, you have a 2×2×2 cm metal block which you must regulate the temperature of (ignoring any supports surrounding the block). \n \
-\n \
-To do this, you have a variable output heater with a maximum power rating of 20 kW. \n \
-\n \
-The output of your PID system will be an integer between 0-512 (denoted by u(t) in the equation). This number will determine the output of the heater with 512 providing the maximum value \n \
-\n \
-An output of 0 allows the system to be air cooled under ambient conditions, with no heater output, which is assumed to be 30°C. \n \
-\n \
-Eventually, you will be able to tune the controller for yourself. While doing so, you will face various constraints and challenges which you must overcome to progress within this custom theory."
+  "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n \
+\
+To make progress, you will need to disturb T to change rho. \
+You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_s. \
+\n \n \
+The controller works by calculating the error, e(t) between T and the set point, T_s. \
+The controller used in this theory will be a PID -- proportional, integral and derivative controller. \
+K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. \
+The integral term sums up the past errors and attempts to minimise the error after t_i seconds.\
+ The derivative term attempts to predict the future \error after t_d seconds based on the current derivative of e(t). \
+At some point you will also be able to manually change the values k_p, t_i, t_d, \
+and T_s to explore the system more deeply and to improve rho gain.\n \n \
+\
+In this theory, you will assume that this is a temperature control system. \
+The PID controller either heats the system to raise temperature, or cools the system to lower temperature. \
+This decision is based on the measured error e(t) and the output, u(t), is modelled as a percentage between -100% and 100%. \
+(Note that behind the scenes some more advanced features such as 'anti-windup' are taking place, feel free to read further into the subject if you are curious.)";
 
 var authors = "Gaunter#1337, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "2.0.0";
-var publicationExponent = 0.6;
+var version = "1.6.3";
+var publicationExponent = 0.2;
 var achievements;
 requiresGameVersion("1.4.29");
 
@@ -51,12 +57,12 @@ var getImageSize = (width) => {
 }
 
 // System variables
-var rhoEstimate, Tc, Th, d1, d0, fd1, fd0, r, T, output, kp, kd, ki, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
-kp = 5;
+var rhoEstimate, Tc, Th, d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
+kp = 1;
 cycleEstimate = BigNumber.ZERO;
 rEstimate = BigNumber.ZERO;
-ki = 0;
-kd = 0;
+ti = 5;
+td = 0.2;
 amplitude = 125;
 autoKickerEnabled = false;
 frequency = 1.2;
@@ -260,8 +266,8 @@ var init = () => {
   let achievement_category1 = theory.createAchievementCategory(0, "R");
   let achievement_category2 = theory.createAchievementCategory(1, "Milestones");
   let achievement_category3 = theory.createAchievementCategory(2, "Publications");
-  let achievement_category4 = theory.createAchievementCategory(3, "Challenges (1e300τ+)");
-  let achievement_category5 = theory.createAchievementCategory(4, "Challenges (1e360τ+)");
+  let achievement_category4 = theory.createAchievementCategory(3, "Challenges (1e100τ+)");
+  let achievement_category5 = theory.createAchievementCategory(4, "Challenges (1e120τ+)");
   achievements = [
 
     // Temperature
@@ -388,18 +394,18 @@ However, there is still a bit more to be done. \n \
 The committee gasps. \n \
 You explain that reflecting on your past 'achievements', you believe you have found a way to make the system even more efficient. \n \
 They reply that they have high expectations for your future work. \n \
+The End \n \
+? \
 ";
 theory.createStoryChapter(9, "The End?", storychaper_10, () => theory.tau > BigNumber.from(1e100));
 
 // All achievements unlocked
 let storychaper_11 =
   "You were able to make the system efficient beyond your wildest dreams. \n \
-You have achieved a high level of greatness - there is nothing left to achieve. \n \
+You have achieved a high level of greatness. There are no more possibilities for improvement. \n \
 Now you just need to sit back and let the system run. \n \
 You are truly the master of Temperature Control. \n \
 The End \n \
-? \n \
-(You have unlocked a new upgrade.) \
 "
 theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achievementMultiplier >= 30);
 {
@@ -426,7 +432,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     tDotExponent.maxLevel = 50 + exponentCap.level * 2;
   }
 
-  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ki.toString()} ${kd.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency} ${maximumPublicationTdot}`;
+  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency} ${maximumPublicationTdot}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -435,8 +441,8 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     if (values.length > 1) error[0] = parseFloat(values[1]);
     if (values.length > 2) integral = parseFloat(values[2]);
     if (values.length > 3) kp = parseFloat(values[3]);
-    if (values.length > 4) ki = parseFloat(values[4]);
-    if (values.length > 5) kd = parseFloat(values[5]);
+    if (values.length > 4) ti = parseFloat(values[4]);
+    if (values.length > 5) td = parseFloat(values[5]);
     if (values.length > 6) valve = parseFloat(values[6]);
     if (values.length > 7) publicationCount = parseFloat(values[7])
     if (values.length > 8) r = parseBigNumber(values[8]);
@@ -451,15 +457,15 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
 
   var updatePidValues = () => {
     kp = newKp;
-    kd = newKd;
-    ki = newKi;
+    td = newTd;
+    ti = newTi;
     setPoint = newSetPoint;
     theory.invalidateSecondaryEquation();
   }
 
   var newKp = kp;
-  var newKi = ki;
-  var newKd = kd;
+  var newTi = ti;
+  var newTd = td;
   var newSetPoint = setPoint;
 
   // Allows the user to reset post e100 tau for challenge runs
@@ -470,52 +476,42 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
       columnDefinitions: ["1*", "3*", "1*"],
       columnSpacing: 0,
       children: [
-        ui.createStackLayout({
-          horizontalOptions: LayoutOptions.FILL_AND_EXPAND,
-          verticalOptions: LayoutOptions.FILL_AND_EXPAND,
+        ui.createImage({
+          source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/main/auto_adjuster_icon.png"),
+          useTint: true,
+          widthRequest: getImageSize(ui.screenWidth),
+          heightRequest: getImageSize(ui.screenWidth),
+          aspect: Aspect.ASPECT_FILL,
+          onTouched: (e) => {
+            if (e.type.isReleased()) {
+              let autoKickMenu = createAutoKickerMenu();
+              autoKickMenu.show();
+            }
+          },
+          isVisible: () => autoKick.level > 0,
           row: 0,
           column: 0,
+          horizontalOptions: LayoutOptions.START,
+          verticalOptions: LayoutOptions.START,
+        }),
+        ui.createFrame({
+          isVisible: () => autoKickerEnabled,
+          row: 0,
+          column: 1,
+          horizontalOptions: LayoutOptions.FILL_AND_EXPAND,
+          verticalOptions: LayoutOptions.START,
           children: [
-            ui.createImage({
-              source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/main/auto_adjuster_icon.png"),
-              useTint: true,
-              widthRequest: getImageSize(ui.screenWidth),
-              heightRequest: getImageSize(ui.screenWidth),
-              aspect: Aspect.ASPECT_FILL,
-              margin: new Thickness(13,10,0,0),
-              onTouched: (e) => {
-                if (e.type.isReleased()) {
-                  let autoKickMenu = createAutoKickerMenu();
-                  autoKickMenu.show();
-                }
-              },
-              isVisible: () => autoKick.level > 0,
-              horizontalOptions: LayoutOptions.START,
-              verticalOptions: LayoutOptions.START,
+            autoTemperatureBar = ui.createProgressBar({
+              progress: timer / frequency,
             }),
-            ui.createFrame({
-              isVisible: () => autoKick.level > 0,
-              horizontalOptions: LayoutOptions.START_AND_EXPAND,
-              verticalOptions: LayoutOptions.CENTER_AND_EXPAND,
-              rotation: -90,
-              scaleX: 1.75,
-              translationX: -22,
-              children: [
-                autoTemperatureBar = ui.createProgressBar({
-                progress: timer / frequency,
-                widthRequest: 120,
-                }),
-              ]
-            }),
-          ]
-      }),
+          ],
+        }),
         ui.createImage({
           useTint: false,
           source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/main/pid_menu_icon.png"),
           widthRequest: getImageSize(ui.screenWidth),
           heightRequest: getImageSize(ui.screenWidth),
           aspect: Aspect.ASPECT_FILL,
-          margin: new Thickness(0,10,10,0),
           onTouched: (e) => {
             if (e.type.isReleased()) {
               let pidMenu = createPidMenu();
@@ -539,29 +535,19 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     let menu = ui.createPopup({
       title: "Temperature Adjuster",
       content: ui.createStackLayout({
-        margin: new Thickness(0,10,0,0),
         children: [
-          amplitudeLabel = ui.createLatexLabel({ text: amplitudeText + amplitude.toPrecision(3) }),
+          amplitudeLabel = ui.createLabel({ text: amplitudeText + amplitude.toPrecision(3) }),
           amplitudeSlider = ui.createSlider({
             onValueChanged: () => amplitudeLabel.text = amplitudeText + amplitudeSlider.value.toPrecision(3),
           }),
-          frequencyLabel = ui.createLatexLabel({ text: frequencyText + frequency.toPrecision(3) }),
+          frequencyLabel = ui.createLabel({ text: frequencyText + frequency.toPrecision(3) }),
           frequencySlider = ui.createSlider({
             onValueChanged: () => frequencyLabel.text = frequencyText + frequencySlider.value.toPrecision(3),
           }),
-          ui.createStackLayout({
-            orientation: StackOrientation.HORIZONTAL,
-            horizontalOptions: LayoutOptions.CENTER,
-            children: [
-              ui.createLatexLabel({
-                text: "Off/On",
-                verticalOptions: LayoutOptions.CENTER,
-              }),
-              autoKickerSwitch = ui.createSwitch({
-                isToggled: () => autoKickerEnabled,
-                onTouched: (e) => { if (e.type == TouchType.PRESSED) autoKickerEnabled = !autoKickerEnabled }
-              }),
-            ]
+          ui.createLabel({ text: "Off/On" }),
+          autoKickerSwitch = ui.createSwitch({
+            isToggled: () => autoKickerEnabled,
+            onTouched: (e) => { if (e.type == TouchType.PRESSED) autoKickerEnabled = !autoKickerEnabled }
           }),
           maxTdotLabel = ui.createLatexLabel({ text: maxTdotText + maximumPublicationTdot.toString() }),
           cycleEstimateLabel = ui.createLatexLabel({ text: cycleEstimateText + cycleEstimate.toString() }),
@@ -569,7 +555,6 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
           rhoEstimateLabel = ui.createLatexLabel({ text: rhoEstimateText + rhoEstimate.toString() }),
           ui.createButton({
             text: "Update",
-            margin: new Thickness(0,10,0,0),
             onClicked: () => {
               amplitude = amplitudeSlider.value;
               frequency = frequencySlider.value
@@ -586,116 +571,69 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     frequencySlider.value = frequency;
     return menu;
   }
-  const viewPIDInfoMenu = () => {
-    log("Hello")
-    let menu = ui.createPopup({
-      title: "PID Menu Guide",
-      content:
-        ui.createScrollView({
-          content:
-          ui.createStackLayout({
-            children: [
-              ui.createLabel({
-                horizontalTextAlignment: TextAlignment.START,
-                text: "\
-              This menu is used to tweak the parameters of the PID controller - a mechanism that can automatically adjust the temperature to a given value.\n \
-              \n \
-              This guide serves as an explanation for each of the following tuning parameters and gives a rough picture of how it affects the main system. Each cycle, the controller measures the error term, e(t), and passes it into the below equation. Because this measurement only happens at set intervals, rather than continously, the measurements are stored in a sequence known as e_n. \n \
-              \n \
-              K_p: This refers to the proportional gain. Essentially, this term will provide a larger output with a greater difference between the temperature and the setpoint. If this is the only term set, you are likely to issue permament offset which means the controller does not recognise it needs to provide a higher output to achieve its goal. If this is set too high, it can cause the controller to become aggresive which means it overreacts to any small deviation.\n  \
-              \n \
-              K_i: This refers to the integral gain. This term allows the controller to calculate the sum of the previous errors and adjust the output to attempt to minimise them. With this term, you can prevent the offset T has with the setpoint that is present with just a proportional controller.\n \
-              \n \
-              K_d: This refers to the differential gain. This term measures the rate of change in the error and attempts to adjust the output to minimise future errors. This can prevent overshoot, which allows T to settle at the setpoint without moving too far beyond.\n \
-              \n \
-              T_s: This refers to the setpoint. The controller will try to manipulate the temperature towards this value. \
-                "
-              })
-            ]
-          })
-
-        })
-    }
-    );
-
-    return menu;
-  }
   const createPidMenu = () => {
     let kpText = "{K}_{p} = ";
-    let tiText = "{K}_{i} = ";
-    let tdText = "{K}_{d} = ";
+    let tiText = "{t}_{i} = ";
+    let tdText = "{t}_{d} = ";
     let setPointText = "{T}_{s} = "
-    let kpTextLabel, kiTextLabel, kdTextLabel, setPointTextLabel;
-    let kpSlider, kiSlider, kdSlider, setPointSlider;
+    let kpTextLabel, tiTextLabel, tdTextLabel, setPointTextLabel;
+    let kpSlider, tiSlider, tdSlider, setPointSlider;
     let menu = ui.createPopup({
       title: "Configure PID",
-      content: 
-        ui.createStackLayout({
-          children: [
-            ui.createImage({
-              source: ImageSource.INFO,
-              scaleX: 0.6,
-              scaleY: 0.6,
-              horizontalOptions: LayoutOptions.START,
-              onTouched: (e) => {
-                if(e.type.isReleased()) {
-                  infoMenu = viewPIDInfoMenu();
-                  infoMenu.show();
-                }
-              },
-            }),
-            ui.createLatexLabel({
-              horizontalTextAlignment: TextAlignment.CENTER,
-              verticalTextAlignment: TextAlignment.CENTER,
-              fontSize: 12,
-              text: Utils.getMath("\\begin{matrix} \
-                e_n = T - T_{s} \\\\ \
-                u(t) = K_p e_n + K_i\\sum_{0}^{n} ( e_i ) + K_d(e_n - e_{n-1}) \
-                \\end{matrix}")
-            }),
-            kpTextLabel = ui.createLatexLabel({ text: Utils.getMath(kpText + kp.toString()) }),
-            kpSlider = ui.createSlider({
-              value: Math.log10(kp),
-              minimum: -2,
-              maximum: 2,
-              onValueChanged: () => {
-                kpTextLabel.text = Utils.getMath(kpText + Math.pow(10, kpSlider.value).toPrecision(2).toString());
-                newKp = Math.pow(10, kpSlider.value);
-              },
-            }),
-            kiTextLabel = ui.createLatexLabel({ text: Utils.getMath(tiText + ki.toString()) }),
-            kiSlider = ui.createSlider({
-              value: ki,
-              minimum: 0,
-              maximum: 50,
-              onValueChanged: () => {
-                kiTextLabel.text = Utils.getMath(tiText + kiSlider.value.toPrecision(2).toString());
-                newKi = kiSlider.value;
-              },
-            }),
-            kdTextLabel = ui.createLatexLabel({ text: Utils.getMath(tdText + kd.toString()) }),
-            kdSlider = ui.createSlider({
-              value: kd,
-              minimum: 0,
-              maximum: 50,
-              onValueChanged: () => {
-                kdTextLabel.text = Utils.getMath(tdText + kdSlider.value.toPrecision(2).toString());
-                newKd = kdSlider.value;
-              },
-            }),
-            setPointTextLabel = ui.createLatexLabel({ text: Utils.getMath(setPointText + setPoint.toPrecision(3)) }),
-            setPointSlider = ui.createSlider({
-              onValueChanged: () => {
-                setPointTextLabel.text = Utils.getMath(setPointText + setPointSlider.value.toPrecision(3));
-                newSetPoint = setPointSlider.value;
-              },
-            }),
-            ui.createButton({ text: "Update", onClicked: updatePidValues })
-          ]
-        })
+      content: ui.createStackLayout({
+        children: [
+          ui.createLatexLabel({
+            horizontalTextAlignment: TextAlignment.CENTER,
+            verticalTextAlignment: TextAlignment.CENTER,
+            fontSize: 12,
+            text: Utils.getMath("\\begin{matrix} \
+              e_n = T - T_{sp} \\\\ \
+              u(t) = K_p (e_n + \\frac{1}{t_i}\\sum_{0}^{n} ( e_i ) + t_d(e_n - e_{n-1})) \
+              \\end{matrix}")
+          }),
+          kpTextLabel = ui.createLatexLabel({ text: Utils.getMath(kpText + kp.toString()) }),
+          kpSlider = ui.createSlider({
+            value: Math.log10(kp),
+            minimum: -2,
+            maximum: 1,
+            onValueChanged: () => {
+              kpTextLabel.text = Utils.getMath(kpText + Math.pow(10, kpSlider.value).toPrecision(2).toString());
+              newKp = Math.pow(10, kpSlider.value);
+            },
+          }),
+          tiTextLabel = ui.createLatexLabel({ text: Utils.getMath(tiText + ti.toString()) }),
+          tiSlider = ui.createSlider({
+            value: Math.log10(ti),
+            minimum: -1.5,
+            maximum: 1,
+            onValueChanged: () => {
+              tiTextLabel.text = Utils.getMath(tiText + Math.pow(10, tiSlider.value).toPrecision(2).toString());
+              newTi = Math.pow(10, tiSlider.value);
+            },
+          }),
+          tdTextLabel = ui.createLatexLabel({ text: Utils.getMath(tdText + td.toString()) }),
+          tdSlider = ui.createSlider({
+            value: Math.log10(td),
+            minimum: -1.5,
+            maximum: 1,
+            onValueChanged: () => {
+              tdTextLabel.text = Utils.getMath(tdText + Math.pow(10, tdSlider.value).toPrecision(2).toString());
+              newTd = Math.pow(10, tdSlider.value);
+            },
+          }),
+          setPointTextLabel = ui.createLatexLabel({ text: Utils.getMath(setPointText + setPoint.toPrecision(3)) }),
+          setPointSlider = ui.createSlider({
+            onValueChanged: () => {
+              setPointTextLabel.text = Utils.getMath(setPointText + setPointSlider.value.toPrecision(3));
+              newSetPoint = setPointSlider.value;
+            },
+          }),
+          ui.createButton({ text: "Update", onClicked: updatePidValues })
+        ]
+      })
     })
-    setPointSlider.maximum = Th - 20;
-    setPointSlider.minimum = Tc + 20;
+    setPointSlider.maximum = Th;
+    setPointSlider.minimum = Tc;
     setPointSlider.value = setPoint;
     return menu;
   }
@@ -733,18 +671,30 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     // Anti-windup scheme
     if (integral > 100) integral = 100;
     if (integral < -100) integral = -100;
-    output = Math.round(Math.max(0, Math.min(kp * error[0] + ki * integral + kd * derivative, 512))); // range 0-512
-    // System Params
-    let Q = 500 // max heat duty in W
-    let h = 5 // thermal passive convection coefficient for Al
-    let Cp = 0.89 // heat capacity for Al
-    let area = 0.024 // area of element
-    let mass = 10 // grams
+    if (Math.abs(error[0]) > 10) integral = 0;
+    output = kp * (error[0] + systemDt / ti * integral + td * derivative);
 
-    // Heating simulation
+    // Output and integral clamping mechanism
+    if (output > 100) {
+      valve = 1
+      integral -= output - 100;
+    }
+    else if (output < -100) {
+      valve = -1;
+      integral += -100 - output;
+    }
+    else {
+      valve = output / 100;
+    }
+
     let dT = 0;
     let prevT = T;
-    T = T + Q * output * systemDt / 512  / mass / Cp - (T - 30) * area * h * systemDt
+
+    if (valve > 0) {
+      T = Th + (T - Th) * BigNumber.E.pow(-1 * Math.abs(valve) * systemDt)
+    } else if (valve < 0) {
+      T = Tc + (T - Tc) * BigNumber.E.pow(-1 * Math.abs(valve) * systemDt)
+    }
 
     let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level)) * getR3((unlockR3.level > 0) * r3.level) / (1 + Math.log10(1 + Math.abs(error[0])));
     rEstimate = rEstimate * 0.95 + dr * 0.05;
@@ -782,8 +732,8 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     let r2_exp = r2Exponent.level > 0 ? getR2Exp(r2Exponent.level).toNumber() : "";
     let r3_string = unlockR3.level > 0 ? "r_3" : "";
     result += "\\dot{\\rho} = r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp + "}\\dot{T}^{" + getTdotExponent(tDotExponent.level) + "}}";
-    result += "\\\\ \\dot{r} = \\frac{r_1^{" + r1_exp + "} r_2^{" + r2_exp + "} " + r3_string + "}{1+\\log_{10}(1 + \|e(t)\|)}\\\\"
-    result += "\\\\ \\dot{T} = u(t)\\frac{\\dot{Q}}{mc_p} - (T - 30)Ah";
+    result += "\\\\ \\dot{r} = \\frac{r_1^{" + r1_exp + "} r_2^{" + r2_exp + "} " + r3_string + "}{1+\\log_{10}(1 + \|e(t)\|)}"
+    result += "\\\\ \\dot{T} = \\left\\{ \\begin{array}{cl} u(t)(" + Th + " - T) & : \\ u(t) > 0\\\\ u(t)(T - " + Tc + ") & : \\ u(t) < 0 \\end{array} \\right.\\\\";
     result += "\\end{matrix}"
     return result;
   }
@@ -794,7 +744,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     let result = "\\begin{array}{c}";
 
     result += "e(t) = T_{s} - T \\\\";
-    result += "u(t) = " + output + " \\\\";
+    result += "u(t) = " + valve.toString() + " \\\\";
     result += theory.latexSymbol + "=\\max\\rho^{" + publicationExponent + "}";
     result += "\\end{array}"
     return result;
@@ -826,7 +776,7 @@ var getCustomCost = (level) => {
     case 12: result = 315; break;
     case 13: result = 440; break; // r3
   }
-  return result * 0.6;
+  return result * 0.2;
 }
 var getC1Exp = (level) => BigNumber.from(1 + c1Exponent.level * 0.05);
 var getRExp = (level) => BigNumber.from(1 + rExponent.level * 0.001);
@@ -837,12 +787,11 @@ var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
 var getR2 = (level) => BigNumber.TWO.pow(level);
 var getR3 = (level) => BigNumber.E.pow(level);
 var getTdotExponent = (level) => 2 + level;
-var tauExponent = 0.1 * 1 / publicationExponent
-var getPublicationMultiplier = (tau) => achievementMultiplierUpgrade.level >= 1 ? achievementMultiplier * tau.pow(tauExponent) / 2 : tau.pow(tauExponent) / 2;
-var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level >= 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times \\frac{" + symbol + "^{"+ tauExponent +"}}{2}" : "\\frac{" + symbol + "^{"+ tauExponent +"}}{2}");
+var getPublicationMultiplier = (tau) => achievementMultiplierUpgrade.level >= 1 ? achievementMultiplier * tau.pow(0.5) / 2 : tau.pow(0.5) / 2;
+var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level >= 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times \\frac{" + symbol + "^{0.5}}{2}" : "\\frac{" + symbol + "^{0.5}}{2}");
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
-var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(5 / 3), rho.symbol];
+var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(5), rho.symbol];
 var postPublish = () => {
   initialiseSystem();
   theory.invalidatePrimaryEquation();
