@@ -395,7 +395,7 @@ The committee gasps. \n \
 You explain that reflecting on your past 'achievements', you believe you have found a way to make the system even more efficient. \n \
 They reply that they have high expectations for your future work. \n \
 ";
-theory.createStoryChapter(9, "Award Winner", storychaper_9, () => theory.tau > BigNumber.from(1e360));
+theory.createStoryChapter(9, "Award Winner", storychaper_9, () => theory.tau > BigNumber.from("1e360"));
 
 // All achievements unlocked
 let storychaper_10 =
