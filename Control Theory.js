@@ -7,27 +7,19 @@ import { TouchType } from "../api/UI/properties/TouchType";
 var id = "temperature_control";
 var name = "Temperature Control";
 var description =
-  "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n \n \
-\
-To make progress, you will need to disturb T to change rho. \
-You will also need to grow the variable 'r', this grows faster when T is close to the setpoint, T_s. \
-\n \n \
-The controller works by calculating the error, e(t) between T and the set point, T_s. \
-The controller used in this theory will be a PID -- proportional, integral and derivative controller. \
-K_p represents the proportional gain of the system - in other words how much the output changes depending on the error sum within the brackets. \
-The integral term sums up the past errors and attempts to minimise the error after t_i seconds.\
- The derivative term attempts to predict the future \error after t_d seconds based on the current derivative of e(t). \
-At some point you will also be able to manually change the values k_p, t_i, t_d, \
-and T_s to explore the system more deeply and to improve rho gain.\n \n \
-\
-In this theory, you will assume that this is a temperature control system. \
-The PID controller either heats the system to raise temperature, or cools the system to lower temperature. \
-This decision is based on the measured error e(t) and the output, u(t), is modelled as a percentage between -100% and 100%. \
-(Note that behind the scenes some more advanced features such as 'anti-windup' are taking place, feel free to read further into the subject if you are curious.)";
+  "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n  \
+  \n \
+You must regulate a 2×2×2 cm metal block using a variable output heater with a maximum power rating of 20 kW. \n \
+\n \
+The output of your PID system will be an integer between 0-512 (denoted by u(t) in the equation). This number will determine the output of the heater with 512 providing the maximum value \n \
+\n \
+An output of 0 allows the system to be air cooled under ambient conditions (30°C), with no heater output. \n \
+\n \
+Eventually, you will be able to tune the controller for yourself. While doing so, you will face various constraints and challenges which you must overcome to progress within this custom theory."
 
 var authors = "Gaunter#1337, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "1.6.3";
-var publicationExponent = 0.2;
+var version = "2.0.0";
+var publicationExponent = 0.6;
 var achievements;
 requiresGameVersion("1.4.29");
 
@@ -57,12 +49,12 @@ var getImageSize = (width) => {
 }
 
 // System variables
-var rhoEstimate, Tc, Th, d1, d0, fd1, fd0, r, T, output, kp, td, ti, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
-kp = 1;
+var rhoEstimate, Tc, Th, P, r, T, output, kp, kd, ki, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
+kp = 5;
 cycleEstimate = BigNumber.ZERO;
 rEstimate = BigNumber.ZERO;
-ti = 5;
-td = 0.2;
+ki = 0;
+kd = 0;
 amplitude = 125;
 autoKickerEnabled = false;
 frequency = 1.2;
@@ -72,8 +64,9 @@ publicationCount = 0;
 var maximumPublicationTdot;
 var initialiseSystem = () => {
   timer = 0;
-  T = BigNumber.from(100);
+  T = BigNumber.from(30);
   r = BigNumber.from(1)
+  P = BigNumber.ONE;
   cycleR = BigNumber.ZERO;
   valve = BigNumber.ZERO;
   integral = 0;
@@ -83,19 +76,25 @@ var initialiseSystem = () => {
   d0 = 0;
   fd1 = 0;
   fd0 = 0;
+  // System Params
+  Q = 20 // max heat duty in W
+  h = 5 // thermal passive convection coefficient for Al (W/m^2 k)
+  Cp = 0.89 // heat capacity for Al (J/g/K)
+  area = 0.024 // area of element (m^2)
+  mass = 10 // grams
   Tc = 30;
   Th = 200;
   rEstimate = BigNumber.ZERO;
   rhoEstimate = BigNumber.ZERO;
   baseTolerance = 5;
-  achievementMultiplier = 1;
+  achievementMultiplier = 30;
   maximumPublicationTdot = BigNumber.ZERO;
 }
 // Upgrades
-var c1, r1, r2, r3, kickT, changePidValues, autoKick, exponentCap, achievementMultiplierUpgrade, tDotExponent;
+var c1, r1, r2, c2, kickT, changePidValues, autoKick, exponentCap, achievementMultiplierUpgrade, tDotExponent;
 
 // Milestones
-var c1Exponent, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade, unlockR3;
+var c1Exponent, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade, unlockC2;
 
 var init = () => {
   rho = theory.createCurrency();
@@ -132,14 +131,14 @@ var init = () => {
     r2Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r_2", r2ExponentScale);
     r2Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r_2", r2ExponentScale);
     r2Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
-    r2Exponent.canBeRefunded = () => unlockR3.level == 0 && rExponent.level == 0;
+    r2Exponent.canBeRefunded = () => unlockC2.level == 0 && rExponent.level == 0;
   }
   {
     c1BaseUpgrade = theory.createMilestoneUpgrade(4, 2);
     c1BaseUpgrade.getInfo = (_) => "Increases $c_1$ base by " + 0.125;
     c1BaseUpgrade.getDescription = (_) => "$\\uparrow \\ c_1$ base by " + 0.125;
     c1BaseUpgrade.boughtOrRefunded = (_) => updateAvailability();
-    c1BaseUpgrade.canBeRefunded = () => unlockR3.level == 0 && rExponent.level == 0;
+    c1BaseUpgrade.canBeRefunded = () => unlockC2.level == 0 && rExponent.level == 0;
   }
 
   {
@@ -151,10 +150,10 @@ var init = () => {
     updateAvailability(); theory.invalidatePrimaryEquation();
   }
   {
-    unlockR3 = theory.createMilestoneUpgrade(6, 1);
-    unlockR3.getDescription = (_) => Localization.getUpgradeAddTermDesc("r_3");
-    unlockR3.getInfo = (_) => Localization.getUpgradeAddTermInfo("r_3");
-    unlockR3.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+    unlockC2 = theory.createMilestoneUpgrade(6, 1);
+    unlockC2.getDescription = (_) => Localization.getUpgradeAddTermDesc("c_2");
+    unlockC2.getInfo = (_) => Localization.getUpgradeAddTermInfo("c_2");
+    unlockC2.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
 
 
@@ -175,30 +174,10 @@ var init = () => {
 
   // Achievement Multiplier
   {
-    achievementMultiplierUpgrade = theory.createPermanentUpgrade(6, rho, new CustomCost(_ => BigNumber.from(1e250).pow(2)));
+    achievementMultiplierUpgrade = theory.createPermanentUpgrade(5, rho, new CustomCost(_ => BigNumber.TEN.pow(600)));
     achievementMultiplierUpgrade.maxLevel = 1;
     achievementMultiplierUpgrade.getDescription = (_) => "Achievement multiplier"
     achievementMultiplierUpgrade.getInfo = (_) => "Multiplies income by " + calculateAchievementMultiplier().toPrecision(3);
-  }
-  // Tdot exponent cap 
-  {
-    exponentCap = theory.createPermanentUpgrade(7, rho, new CustomCost((level) => {
-      switch (level) {
-        case 0: return BigNumber.TEN.pow(350);
-        case 1: return BigNumber.TEN.pow(390);
-        case 2: return BigNumber.TEN.pow(440);
-        case 3: return BigNumber.TEN.pow(535);
-        case 4: return BigNumber.TEN.pow(585);
-        case 5: return BigNumber.TEN.pow(635);
-        case 6: return BigNumber.TEN.pow(685);
-        case 7: return BigNumber.TEN.pow(725);
-      }
-    }
-    ));
-    exponentCap.getDescription = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 2)
-    exponentCap.getInfo = (_) => Localization.getUpgradeIncCustomInfo("\\dot{T} \\text{ exponent cap}", 2)
-    exponentCap.maxLevel = 8;
-    exponentCap.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
 
   /////////////////////
@@ -225,7 +204,7 @@ var init = () => {
   {
     let getDesc = (level) => "r_1=" + Utils.getStepwisePowerSum(level, 2, 10, 0).toString(0);
     let getInfo = (level) => "r_1=" + Utils.getStepwisePowerSum(level, 2, 10, 0).toString(0);
-    r1 = theory.createUpgrade(2, rho, new ExponentialCost(10, Math.log2(3)));
+    r1 = theory.createUpgrade(2, rho, new ExponentialCost(10, Math.log2(1.585)));
     r1.getDescription = (_) => Utils.getMath(getDesc(r1.level));
     r1.getInfo = (amount) => Utils.getMathTo(getInfo(r1.level), getInfo(r1.level + amount));
   }
@@ -238,27 +217,48 @@ var init = () => {
     r2.getDescription = (_) => Utils.getMath(getDesc(r2.level));
     r2.getInfo = (amount) => Utils.getMathTo(getInfo(r2.level), getInfo(r2.level + amount));
   }
-  // r3
+  // c2
   {
-    let getDesc = (level) => "r_3= e^{" + level + "}";
-    let getInfo = (level) => "r_3=" + getR3(level).toString(2);
-    r3 = theory.createUpgrade(4, rho, new ExponentialCost(1e220, Math.log2(10 ** 2.12)));
-    r3.getDescription = (_) => Utils.getMath(getDesc(r3.level));
-    r3.getInfo = (amount) => Utils.getMathTo(getInfo(r3.level), getInfo(r3.level + amount));
-    r3.isAvailable = unlockR3.level > 0;
+    let getDesc = (level) => "c_2= e^{" + level + "}";
+    let getInfo = (level) => "c_2=" + getC2(level).toString(2);
+    c2 = theory.createUpgrade(4, rho, new ExponentialCost(BigNumber.TEN.pow(400), Math.log2(10 ** 4.5)));
+    c2.getDescription = (_) => Utils.getMath(getDesc(c2.level));
+    c2.getInfo = (amount) => Utils.getMathTo(getInfo(c2.level), getInfo(c2.level + amount));
+    c2.isAvailable = unlockC2.level > 0;
+    c2.maxLevel = 75
   }
   //Tdot exponent
   {
     let getInfo = (level) => "\\dot{T}^{" + (level + 2) + "}";
     let getDesc = (_) => Localization.getUpgradeIncCustomExpDesc("\\dot{T}", 1);
-    tDotExponent = theory.createUpgrade(5, rho, new ExponentialCost(1e15, Math.log2(7500)));
-    tDotExponent.maxLevel = 50 + exponentCap.level*2;
+    tDotExponent = theory.createUpgrade(5, rho, new ExponentialCost(1e15, Math.log2(1000)));
+    tDotExponent.maxLevel = 100;
     tDotExponent.getDescription = (_) => getDesc(tDotExponent.level);
     tDotExponent.getInfo = (amount) => Utils.getMathTo(getInfo(tDotExponent.level), getInfo(tDotExponent.level + amount))
     tDotExponent.bought = (_) => theory.invalidatePrimaryEquation();
   }
+  // p1
+  {
+    let getDesc = (level) => "p_1=" + Utils.getStepwisePowerSum(level, 2, 10, 1).toString(0);
+    let getInfo = (level) => "p_1=" + Utils.getStepwisePowerSum(level, 2, 10, 1).toString(0);
+    p1 = theory.createUpgrade(6, rho, new ExponentialCost(BigNumber.TEN.pow(750), Math.log2(1e5)));
+    p1.getDescription = (_) => Utils.getMath(getDesc(p1.level));
+    p1.getInfo = (amount) => Utils.getMathTo(getInfo(p1.level), getInfo(p1.level + amount));
+    p1.isAvailable = achievementMultiplier >= 30;
+  }
+
+  // p2
+  {
+    let getDesc = (level) => "p_2= 2^{" + level + "}";
+    let getInfo = (level) => "p_2=" + getP2(level).toString(0);
+    p2 = theory.createUpgrade(7, rho, new ExponentialCost(BigNumber.TEN.pow(900), Math.log2(1e15)));
+    p2.getDescription = (_) => Utils.getMath(getDesc(p2.level));
+    p2.getInfo = (amount) => Utils.getMathTo(getInfo(p2.level), getInfo(p2.level + amount));
+    p2.isAvailable = achievementMultiplier >= 30;
+  }
+  
   systemDt = 0.1;
-  setPoint = 100;
+  setPoint = 30;
 
   /////////////////////
   // Achievements
@@ -266,8 +266,8 @@ var init = () => {
   let achievement_category1 = theory.createAchievementCategory(0, "R");
   let achievement_category2 = theory.createAchievementCategory(1, "Milestones");
   let achievement_category3 = theory.createAchievementCategory(2, "Publications");
-  let achievement_category4 = theory.createAchievementCategory(3, "Challenges (1e100τ+)");
-  let achievement_category5 = theory.createAchievementCategory(4, "Challenges (1e120τ+)");
+  let achievement_category4 = theory.createAchievementCategory(3, "Tier 1 Challenges");
+  let achievement_category5 = theory.createAchievementCategory(4, "Tier 2 Challenges");
   achievements = [
 
     // Temperature
@@ -280,6 +280,9 @@ var init = () => {
     theory.createAchievement(4, achievement_category2, "Senior Engineer", "Reach 1e25τ.", () => theory.tau > BigNumber.from(1e25)),
     theory.createAchievement(5, achievement_category2, "Prinicipal Engineer", "Reach 1e50τ.", () => theory.tau > BigNumber.from(1e50)),
     theory.createAchievement(6, achievement_category2, "Googol Engineer", "Reach 1e100τ.", () => theory.tau > BigNumber.from(1e100)),
+    theory.createAchievement(13, achievement_category2, "Reverse Engineer", "Reach 1e180τ.", () => theory.tau > BigNumber.from(1e200)),
+    theory.createAchievement(18, achievement_category2, "Spartan Engineer", "Reach 1e300τ.", () => theory.tau > BigNumber.from(1e300)),
+
 
     // Publications
     theory.createAchievement(7, achievement_category3, "Research Intern", "Publish 5 times.", () => publicationCount >= 5),
@@ -288,21 +291,27 @@ var init = () => {
 
     // Challenges
 
-    // 1e100τ 
-    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e165 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e165) && tDotExponent.level == 0)),
-    theory.createAchievement(11, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e110 while r is still 1.", () => (rho.value > BigNumber.from(1e110) && r == BigNumber.ONE)),
-    theory.createAchievement(12, achievement_category4, "Temperature Control Challenge 1", "Have ρ exceed 1e300 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
-    theory.createAchievement(13, achievement_category4, "Temperature Control Challenge 2", "Have ρ exceed 1e245 while keeping T dot below 10. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e245) && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 10)),
-    theory.createAchievement(14, achievement_category4, "Optimisation Challenge 1", "Have ρ exceed 1e70 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e70) && (c1.level + r1.level + r2.level + r3.level) <= 25) && tDotExponent.level == 0),
+    // 1e360τ 
+    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e500 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(500) && tDotExponent.level == 0)),
+    theory.createAchievement(11, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e160 while r is still 1.", () => (rho.value > BigNumber.from(1e160) && r == BigNumber.ONE)),
+    theory.createAchievement(14, achievement_category4, "Optimisation Challenge", "Have ρ exceed 1e130 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e130) && (c1.level + r1.level + r2.level + c2.level) <= 25) && tDotExponent.level == 0),
 
-    // 1e120τ
-    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e190 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.from(1e190) && tDotExponent.level == 0)),
-    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e120 while r is still 1.", () => (rho.value > BigNumber.from(1e120) && r == BigNumber.ONE)),
-    theory.createAchievement(17, achievement_category5, "Temperature Control Challenge 3", "Have ρ exceed 1e360 while keeping T dot below 20. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) * 1e60 && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 20)),
-    theory.createAchievement(18, achievement_category5, "Temperature Control Challenge 4", "Have ρ exceed 1e300 while keeping T dot below 10. (You must also have a setpoint and amplitude difference of at least 40. No cheating!)", () => (rho.value > BigNumber.from(1e300) && Math.abs(setPoint - amplitude) >= 40 && maximumPublicationTdot <= 5)),
-    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e80 within 20 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e80) && (c1.level + r1.level + r2.level + r3.level) <= 20) && tDotExponent.level == 0),
+    // 1e450τ
+    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e535 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(535) && tDotExponent.level == 0)),
+    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e210 while r is still 1.", () => (rho.value > BigNumber.from(1e210) && r == BigNumber.ONE)),
+    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e160 with only 1 upgrade purchased.", () => (rho.value > BigNumber.from(1e155) && (c1.level + r1.level + r2.level + c2.level + tDotExponent.level) <= 1)),
   ];
   updateAvailability();
+}
+
+var calculateAchievementMultiplier = () => {
+  let count = 0;
+  for (const achievement of achievements) {
+    if (achievement.isUnlocked) {
+      count++
+    }
+  }
+  return Math.pow(30, 1 / 18 * count);
 }
 
 ////////////////////////////
@@ -358,35 +367,26 @@ The system has been pushed to its limit. \n \
 You notice that the motor is dangerously close to burning out. \n \
 For now, it's best to avoid increasing the exponent of the temperature change. \
 ";
-theory.createStoryChapter(5, "Physical Limitations", storychaper_6, () => tDotExponent.level >= 48);
+theory.createStoryChapter(5, "Physical Limitations", storychaper_6, () => tDotExponent.level >= 100);
 
-// r3 unlocked
+// c2 unlocked
 let storychapter_7 =
   "The mathematics department is taking notice of your work. \n \
 They decide to help refine the maths of your system. \n \
 while puzzled at first, the mathematics professor eventually adds a new variable to your existing work. \n \
 \"That should make the numbers grow much faster!\" they exclaim! \n \
 You aren't sure why mathematicians are obsessed with 'e' but you decide to go along with it.";
-theory.createStoryChapter(4, "Refinement", storychapter_7, () => unlockR3.level >= 1);
+theory.createStoryChapter(4, "Refinement", storychapter_7, () => unlockC2.level >= 1);
 
-// T dot exponent cap reached
+// 1e270 tau
 let storychapter_8 =
-  "You believe you have explored all the theoretical, mathematical possibilities with the system. \n \
-You decide to take another look at the practical elements. \n \
-Remembering earlier that the motor was close to burning out, you apply for a more powerful motor. \n \
-The Dean of the university approves your request. They even offer to supply better motors if you show even more promising results. \
-";
-theory.createStoryChapter(7, "De-bottlenecking", storychapter_8, () => exponentCap.level >= 1);
-
-// 1e90 tau
-let storychapter_9 =
   "The Dean contacts you to let you know that the engineering world has taken note of your system. \n \
 They say that you have been nominated for an award for your work. \n \
 You decide to put some finishing touches on your work to impress the awards committee."
-theory.createStoryChapter(8, "Nomination", storychapter_9, () => theory.tau > BigNumber.from(1e90));
+theory.createStoryChapter(8, "Nomination", storychapter_8, () => theory.tau > BigNumber.from(1e270));
 
-// 1e100 tau
-let storychaper_10 =
+// 1e360 tau
+let storychaper_9 =
   "The awards committee was so impressed with your work that they decide to give you a prize. \n \
 You are asked to give a speech about your work. \n \
 You say that a lot of hard work has gone into this project. \n \
@@ -394,45 +394,36 @@ However, there is still a bit more to be done. \n \
 The committee gasps. \n \
 You explain that reflecting on your past 'achievements', you believe you have found a way to make the system even more efficient. \n \
 They reply that they have high expectations for your future work. \n \
-The End \n \
-? \
 ";
-theory.createStoryChapter(9, "The End?", storychaper_10, () => theory.tau > BigNumber.from(1e100));
+theory.createStoryChapter(9, "Award Winner", storychaper_9, () => theory.tau > BigNumber.from(1e360));
 
 // All achievements unlocked
-let storychaper_11 =
+let storychaper_10 =
   "You were able to make the system efficient beyond your wildest dreams. \n \
-You have achieved a high level of greatness. There are no more possibilities for improvement. \n \
+You have achieved a high level of greatness - there is nothing left to achieve. \n \
 Now you just need to sit back and let the system run. \n \
 You are truly the master of Temperature Control. \n \
 The End \n \
+? \n \
+(You have unlocked a new upgrade.) \
 "
-theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achievementMultiplier >= 30);
+theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calculateAchievementMultiplier() >= 30);
 {
   // Internal
-  var calculateAchievementMultiplier = () => {
-    let count = 0;
-    for (const achievement of achievements) {
-      if (achievement.isUnlocked) {
-        count++
-      }
-    }
-    return Math.pow(30, 0.05 * count);
-  }
-
   var updateAvailability = () => {
     kickT.isAvailable = autoKick.level == 0;
     c1Exponent.isAvailable = autoKick.level >= 1;
     r1Exponent.isAvailable = autoKick.level >= 1;
     r2Exponent.isAvailable = c1Exponent.level >= 3 && r1Exponent.level >= 3;
-    unlockR3.isAvailable = r2Exponent.level >= 2;
-    r3.isAvailable = unlockR3.level > 0;
+    unlockC2.isAvailable = r2Exponent.level >= 2;
+    c2.isAvailable = unlockC2.level > 0;
     c1BaseUpgrade.isAvailable = c1Exponent.level >= 3 && r1Exponent.level >= 3;
-    rExponent.isAvailable = unlockR3.level >= 1 && c1BaseUpgrade.level >= 2;
-    tDotExponent.maxLevel = 50 + exponentCap.level * 2;
+    rExponent.isAvailable = unlockC2.level >= 1 && c1BaseUpgrade.level >= 2;
+    p1.isAvailable = calculateAchievementMultiplier() >= 30;
+    p2.isAvailable = calculateAchievementMultiplier() >= 30;
   }
 
-  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ti.toString()} ${td.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency} ${maximumPublicationTdot}`;
+  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ki.toString()} ${kd.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency} ${maximumPublicationTdot} ${P}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -441,8 +432,8 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     if (values.length > 1) error[0] = parseFloat(values[1]);
     if (values.length > 2) integral = parseFloat(values[2]);
     if (values.length > 3) kp = parseFloat(values[3]);
-    if (values.length > 4) ti = parseFloat(values[4]);
-    if (values.length > 5) td = parseFloat(values[5]);
+    if (values.length > 4) ki = parseFloat(values[4]);
+    if (values.length > 5) kd = parseFloat(values[5]);
     if (values.length > 6) valve = parseFloat(values[6]);
     if (values.length > 7) publicationCount = parseFloat(values[7])
     if (values.length > 8) r = parseBigNumber(values[8]);
@@ -453,19 +444,20 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     if (values.length > 13) amplitude = parseFloat(values[13]);
     if (values.length > 14) frequency = parseFloat(values[14]);
     if (values.length > 15) maximumPublicationTdot = parseBigNumber(values[15]);
+    if (values.length > 16) P = parseBigNumber(values[16])
   }
 
   var updatePidValues = () => {
     kp = newKp;
-    td = newTd;
-    ti = newTi;
+    kd = newKd;
+    ki = newKi;
     setPoint = newSetPoint;
     theory.invalidateSecondaryEquation();
   }
 
   var newKp = kp;
-  var newTi = ti;
-  var newTd = td;
+  var newKi = ki;
+  var newKd = kd;
   var newSetPoint = setPoint;
 
   // Allows the user to reset post e100 tau for challenge runs
@@ -476,42 +468,52 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
       columnDefinitions: ["1*", "3*", "1*"],
       columnSpacing: 0,
       children: [
-        ui.createImage({
-          source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/main/auto_adjuster_icon.png"),
-          useTint: true,
-          widthRequest: getImageSize(ui.screenWidth),
-          heightRequest: getImageSize(ui.screenWidth),
-          aspect: Aspect.ASPECT_FILL,
-          onTouched: (e) => {
-            if (e.type.isReleased()) {
-              let autoKickMenu = createAutoKickerMenu();
-              autoKickMenu.show();
-            }
-          },
-          isVisible: () => autoKick.level > 0,
+        ui.createStackLayout({
+          horizontalOptions: LayoutOptions.FILL_AND_EXPAND,
+          verticalOptions: LayoutOptions.FILL_AND_EXPAND,
           row: 0,
           column: 0,
-          horizontalOptions: LayoutOptions.START,
-          verticalOptions: LayoutOptions.START,
-        }),
-        ui.createFrame({
-          isVisible: () => autoKickerEnabled,
-          row: 0,
-          column: 1,
-          horizontalOptions: LayoutOptions.FILL_AND_EXPAND,
-          verticalOptions: LayoutOptions.START,
           children: [
-            autoTemperatureBar = ui.createProgressBar({
-              progress: timer / frequency,
+            ui.createImage({
+              source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/main/auto_adjuster_icon.png"),
+              useTint: true,
+              widthRequest: getImageSize(ui.screenWidth),
+              heightRequest: getImageSize(ui.screenWidth),
+              aspect: Aspect.ASPECT_FILL,
+              margin: new Thickness(13,10,0,0),
+              onTouched: (e) => {
+                if (e.type.isReleased()) {
+                  let autoKickMenu = createAutoKickerMenu();
+                  autoKickMenu.show();
+                }
+              },
+              isVisible: () => autoKick.level > 0,
+              horizontalOptions: LayoutOptions.START,
+              verticalOptions: LayoutOptions.START,
             }),
-          ],
-        }),
+            ui.createFrame({
+              isVisible: () => autoKick.level > 0,
+              horizontalOptions: LayoutOptions.START_AND_EXPAND,
+              verticalOptions: LayoutOptions.CENTER_AND_EXPAND,
+              rotation: -90,
+              scaleX: 1.75,
+              translationX: -22,
+              children: [
+                autoTemperatureBar = ui.createProgressBar({
+                progress: timer / frequency,
+                widthRequest: 120,
+                }),
+              ]
+            }),
+          ]
+      }),
         ui.createImage({
           useTint: false,
           source: ImageSource.fromUri("https://raw.githubusercontent.com/lrobt97/Control-Theory/main/pid_menu_icon.png"),
           widthRequest: getImageSize(ui.screenWidth),
           heightRequest: getImageSize(ui.screenWidth),
           aspect: Aspect.ASPECT_FILL,
+          margin: new Thickness(0,10,10,0),
           onTouched: (e) => {
             if (e.type.isReleased()) {
               let pidMenu = createPidMenu();
@@ -535,19 +537,29 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     let menu = ui.createPopup({
       title: "Temperature Adjuster",
       content: ui.createStackLayout({
+        margin: new Thickness(0,10,0,0),
         children: [
-          amplitudeLabel = ui.createLabel({ text: amplitudeText + amplitude.toPrecision(3) }),
+          amplitudeLabel = ui.createLatexLabel({ text: amplitudeText + amplitude.toPrecision(3) }),
           amplitudeSlider = ui.createSlider({
             onValueChanged: () => amplitudeLabel.text = amplitudeText + amplitudeSlider.value.toPrecision(3),
           }),
-          frequencyLabel = ui.createLabel({ text: frequencyText + frequency.toPrecision(3) }),
+          frequencyLabel = ui.createLatexLabel({ text: frequencyText + frequency.toPrecision(3) }),
           frequencySlider = ui.createSlider({
             onValueChanged: () => frequencyLabel.text = frequencyText + frequencySlider.value.toPrecision(3),
           }),
-          ui.createLabel({ text: "Off/On" }),
-          autoKickerSwitch = ui.createSwitch({
-            isToggled: () => autoKickerEnabled,
-            onTouched: (e) => { if (e.type == TouchType.PRESSED) autoKickerEnabled = !autoKickerEnabled }
+          ui.createStackLayout({
+            orientation: StackOrientation.HORIZONTAL,
+            horizontalOptions: LayoutOptions.CENTER,
+            children: [
+              ui.createLatexLabel({
+                text: "Off/On",
+                verticalOptions: LayoutOptions.CENTER,
+              }),
+              autoKickerSwitch = ui.createSwitch({
+                isToggled: () => autoKickerEnabled,
+                onTouched: (e) => { if (e.type == TouchType.PRESSED) autoKickerEnabled = !autoKickerEnabled }
+              }),
+            ]
           }),
           maxTdotLabel = ui.createLatexLabel({ text: maxTdotText + maximumPublicationTdot.toString() }),
           cycleEstimateLabel = ui.createLatexLabel({ text: cycleEstimateText + cycleEstimate.toString() }),
@@ -555,6 +567,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
           rhoEstimateLabel = ui.createLatexLabel({ text: rhoEstimateText + rhoEstimate.toString() }),
           ui.createButton({
             text: "Update",
+            margin: new Thickness(0,10,0,0),
             onClicked: () => {
               amplitude = amplitudeSlider.value;
               frequency = frequencySlider.value
@@ -571,69 +584,119 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     frequencySlider.value = frequency;
     return menu;
   }
+  const viewPIDInfoMenu = () => {
+    log("Hello")
+    let menu = ui.createPopup({
+      title: "PID Menu Guide",
+      content:
+        ui.createScrollView({
+          content:
+          ui.createStackLayout({
+            children: [
+              ui.createLabel({
+                horizontalTextAlignment: TextAlignment.START,
+                text: "\
+              This menu is used to tweak the parameters of the PID controller - a mechanism that can automatically adjust the temperature to a given value (known as the setpoint).\n \
+              \n \
+              This guide serves as an explanation for how the tuning parameters affect the main system. Each cycle, the controller measures the error term, e(t), and uses it in the below equation. Because this measurement only happens in discrete time intervals, the measurements are stored in the sequence e_n. \n \
+              The output of the equation is converted into an integer between 0 and 512. This means any negative values are capped at 0 and the upper limit is capped at 512. This output is used within the main equation of the system.\n \
+              \n \
+              K_p: This refers to the proportional gain. The output of this term scales in proportion to the measured error. Only using this term results in permament offset, which causes the controller to stop even though it hasn't hit the setpoint. If this is set too high, the controller becomes more aggresive which means it overreacts to any small deviation.\n  \
+              \n \
+              K_i: This refers to the integral gain. This term allows the controller to calculate the sum of the previous errors and adjust the output to attempt to minimise them. This operation prevents the offset mentioned above, however setting the value too high can cause oscillations due to windup.\n \
+              \n \
+              K_d: This refers to the differential gain. This term measures the rate of change in the error and attempts to adjust the output to minimise future errors. This can prevent overshoot, which allows T to settle at the setpoint without moving too far beyond. However, setting this term too high can lead to oscillations and instablity.\n \
+              \n \
+              T_s: This refers to the setpoint. The controller will try to manipulate the temperature towards this value. \
+                "
+              })
+            ]
+          })
+
+        })
+    }
+    );
+
+    return menu;
+  }
   const createPidMenu = () => {
     let kpText = "{K}_{p} = ";
-    let tiText = "{t}_{i} = ";
-    let tdText = "{t}_{d} = ";
+    let tiText = "{K}_{i} = ";
+    let tdText = "{K}_{d} = ";
     let setPointText = "{T}_{s} = "
-    let kpTextLabel, tiTextLabel, tdTextLabel, setPointTextLabel;
-    let kpSlider, tiSlider, tdSlider, setPointSlider;
+    let kpTextLabel, kiTextLabel, kdTextLabel, setPointTextLabel;
+    let kpSlider, kiSlider, kdSlider, setPointSlider;
     let menu = ui.createPopup({
       title: "Configure PID",
-      content: ui.createStackLayout({
-        children: [
-          ui.createLatexLabel({
-            horizontalTextAlignment: TextAlignment.CENTER,
-            verticalTextAlignment: TextAlignment.CENTER,
-            fontSize: 12,
-            text: Utils.getMath("\\begin{matrix} \
-              e_n = T - T_{sp} \\\\ \
-              u(t) = K_p (e_n + \\frac{1}{t_i}\\sum_{0}^{n} ( e_i ) + t_d(e_n - e_{n-1})) \
-              \\end{matrix}")
-          }),
-          kpTextLabel = ui.createLatexLabel({ text: Utils.getMath(kpText + kp.toString()) }),
-          kpSlider = ui.createSlider({
-            value: Math.log10(kp),
-            minimum: -2,
-            maximum: 1,
-            onValueChanged: () => {
-              kpTextLabel.text = Utils.getMath(kpText + Math.pow(10, kpSlider.value).toPrecision(2).toString());
-              newKp = Math.pow(10, kpSlider.value);
-            },
-          }),
-          tiTextLabel = ui.createLatexLabel({ text: Utils.getMath(tiText + ti.toString()) }),
-          tiSlider = ui.createSlider({
-            value: Math.log10(ti),
-            minimum: -1.5,
-            maximum: 1,
-            onValueChanged: () => {
-              tiTextLabel.text = Utils.getMath(tiText + Math.pow(10, tiSlider.value).toPrecision(2).toString());
-              newTi = Math.pow(10, tiSlider.value);
-            },
-          }),
-          tdTextLabel = ui.createLatexLabel({ text: Utils.getMath(tdText + td.toString()) }),
-          tdSlider = ui.createSlider({
-            value: Math.log10(td),
-            minimum: -1.5,
-            maximum: 1,
-            onValueChanged: () => {
-              tdTextLabel.text = Utils.getMath(tdText + Math.pow(10, tdSlider.value).toPrecision(2).toString());
-              newTd = Math.pow(10, tdSlider.value);
-            },
-          }),
-          setPointTextLabel = ui.createLatexLabel({ text: Utils.getMath(setPointText + setPoint.toPrecision(3)) }),
-          setPointSlider = ui.createSlider({
-            onValueChanged: () => {
-              setPointTextLabel.text = Utils.getMath(setPointText + setPointSlider.value.toPrecision(3));
-              newSetPoint = setPointSlider.value;
-            },
-          }),
-          ui.createButton({ text: "Update", onClicked: updatePidValues })
-        ]
-      })
+      content: 
+        ui.createStackLayout({
+          children: [
+            ui.createImage({
+              source: ImageSource.INFO,
+              scaleX: 0.6,
+              scaleY: 0.6,
+              horizontalOptions: LayoutOptions.START,
+              onTouched: (e) => {
+                if(e.type.isReleased()) {
+                  infoMenu = viewPIDInfoMenu();
+                  infoMenu.show();
+                }
+              },
+            }),
+            ui.createLatexLabel({
+              horizontalTextAlignment: TextAlignment.CENTER,
+              verticalTextAlignment: TextAlignment.CENTER,
+              fontSize: 12,
+              text: Utils.getMath("\\begin{matrix} \
+                e_n = T - T_{s} \\\\ \
+                u(t) = K_p e_n + K_i\\sum_{0}^{n} ( e_i ) + K_d(e_n - e_{n-1}) \
+                \\end{matrix}")
+            }),
+            kpTextLabel = ui.createLatexLabel({ text: Utils.getMath(kpText + kp.toString()) }),
+            kpSlider = ui.createSlider({
+              value: Math.log10(kp),
+              minimum: -2,
+              maximum: 2,
+              onValueChanged: () => {
+                kpTextLabel.text = Utils.getMath(kpText + Math.pow(10, kpSlider.value).toPrecision(2).toString());
+                newKp = Math.pow(10, kpSlider.value);
+              },
+            }),
+            kiTextLabel = ui.createLatexLabel({ text: Utils.getMath(tiText + ki.toString()) }),
+            kiSlider = ui.createSlider({
+              value: ki,
+              minimum: 0,
+              maximum: 50,
+              onValueChanged: () => {
+                kiTextLabel.text = Utils.getMath(tiText + kiSlider.value.toPrecision(2).toString());
+                newKi = kiSlider.value;
+              },
+            }),
+            kdTextLabel = ui.createLatexLabel({ text: Utils.getMath(tdText + kd.toString()) }),
+            kdSlider = ui.createSlider({
+              value: kd,
+              minimum: 0,
+              maximum: 50,
+              onValueChanged: () => {
+                kdTextLabel.text = Utils.getMath(tdText + kdSlider.value.toPrecision(2).toString());
+                newKd = kdSlider.value;
+              },
+            }),
+            setPointTextLabel = ui.createLatexLabel({ text: Utils.getMath(setPointText + setPoint.toPrecision(3)) }),
+            setPointSlider = ui.createSlider({
+              onValueChanged: () => {
+                setPointTextLabel.text = Utils.getMath(setPointText + setPointSlider.value.toPrecision(3));
+                newSetPoint = setPointSlider.value;
+              },
+            }),
+            ui.createButton({ text: "Update", onClicked: updatePidValues })
+          ]
+        })
     })
-    setPointSlider.maximum = Th;
-    setPointSlider.minimum = Tc;
+
+    setPointSlider.maximum = Tc + Q / h / area;
+    log(setPointSlider.maximum)
+    setPointSlider.minimum = Tc + 20;
     setPointSlider.value = setPoint;
     return menu;
   }
@@ -642,7 +705,9 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     c1.level = 0;
     r1.level = 0;
     r2.level = 0;
-    r3.level = 0;
+    p1.level = 0;
+    p2.level = 0;
+    c2.level = 0;
     tDotExponent.level = 0;
     rho.value = BigNumber.ZERO;
     initialiseSystem();
@@ -671,40 +736,28 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     // Anti-windup scheme
     if (integral > 100) integral = 100;
     if (integral < -100) integral = -100;
-    if (Math.abs(error[0]) > 10) integral = 0;
-    output = kp * (error[0] + systemDt / ti * integral + td * derivative);
+    output = Math.round(Math.max(0, Math.min(kp * error[0] + ki * integral + kd * derivative, 512))); // range 0-512
 
-    // Output and integral clamping mechanism
-    if (output > 100) {
-      valve = 1
-      integral -= output - 100;
-    }
-    else if (output < -100) {
-      valve = -1;
-      integral += -100 - output;
-    }
-    else {
-      valve = output / 100;
-    }
-
+    // Heating simulation
     let dT = 0;
     let prevT = T;
+    let suppliedHeat = Q * output / 512
+    dT = BigNumber.from(Math.abs(1 / mass / Cp * (suppliedHeat - (T - 30) * h * area)));
+    let exponentialTerm = (suppliedHeat - h * area * (prevT - 30)) * BigNumber.E.pow(-1 * systemDt / mass / Cp)
+    T = 30 + (suppliedHeat - exponentialTerm) / (h * area)
 
-    if (valve > 0) {
-      T = Th + (T - Th) * BigNumber.E.pow(-1 * Math.abs(valve) * systemDt)
-    } else if (valve < 0) {
-      T = Tc + (T - Tc) * BigNumber.E.pow(-1 * Math.abs(valve) * systemDt)
-    }
-
-    let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level)) * getR3((unlockR3.level > 0) * r3.level) / (1 + Math.log10(1 + Math.abs(error[0])));
+    let dp = 0;
+    if (achievementMultiplier >= 30) dp = getP1(p1.level) * getP2(p2.level) * T / 100
+    P += dp * dt;
+    let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level)) / (1 + Math.log10(1 + Math.abs(error[0])));
     rEstimate = rEstimate * 0.95 + dr * 0.05;
-    dT = BigNumber.from((T - prevT) / systemDt).abs();
     if (dT > maximumPublicationTdot) maximumPublicationTdot = dT;
     // Required sum for root mean square calculation
     cycleEstimate += dT.pow(2);
     r += dr * dt;
     let value_c1 = getC1(c1.level).pow(getC1Exp(c1Exponent.level));
-    let dRho = r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * bonus;
+    let value_c2 = getC2((unlockC2.level > 0) * c2.level)
+    let dRho = P * r.pow(getRExp(rExponent.level)) * BigNumber.from(value_c1 * value_c2 * dT.pow(getTdotExponent(tDotExponent.level))).sqrt() * bonus;
     rho.value += dt * dRho;
     rhoEstimate = rhoEstimate * 0.95 + dRho * 0.05;
 
@@ -712,6 +765,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     if (rEstimateLabel) rEstimateLabel.text = rEstimateText + rEstimate.toString();
     if (maxTdotLabel) maxTdotLabel.text = maxTdotText + maximumPublicationTdot.toString();
     if (rhoEstimateLabel) rhoEstimateLabel.text = rhoEstimateText + rhoEstimate.toString();
+    updateAvailability();
     theory.invalidateSecondaryEquation();
     theory.invalidateTertiaryEquation();
   }
@@ -730,10 +784,12 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     let r_exp = rExponent.level > 0 ? getRExp(rExponent.level).toNumber() : "";
     let r1_exp = r1Exponent.level > 0 ? getR1Exp(r1Exponent.level).toNumber() : "";
     let r2_exp = r2Exponent.level > 0 ? getR2Exp(r2Exponent.level).toNumber() : "";
-    let r3_string = unlockR3.level > 0 ? "r_3" : "";
-    result += "\\dot{\\rho} = r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp + "}\\dot{T}^{" + getTdotExponent(tDotExponent.level) + "}}";
-    result += "\\\\ \\dot{r} = \\frac{r_1^{" + r1_exp + "} r_2^{" + r2_exp + "} " + r3_string + "}{1+\\log_{10}(1 + \|e(t)\|)}"
-    result += "\\\\ \\dot{T} = \\left\\{ \\begin{array}{cl} u(t)(" + Th + " - T) & : \\ u(t) > 0\\\\ u(t)(T - " + Tc + ") & : \\ u(t) < 0 \\end{array} \\right.\\\\";
+    let c2_string = unlockC2.level > 0 ? "c_2" : "";
+    let P_string = p1.isAvailable? "P":""
+    result += "\\dot{\\rho} = " + P_string + " r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp + "} "+ c2_string + "\\dot{T}^{" + getTdotExponent(tDotExponent.level) + "}}";
+    result += "\\\\ \\dot{r} = \\frac{r_1^{" + r1_exp + "} r_2^{" + r2_exp + "}}{1+\\log_{10}(1 + \|e(t)\|)}"
+    if (p1.isAvailable) result += ",\\ \\dot{P} = p_1 p_2 \\frac{T}{100}";
+    result += "\\\\ \\dot{T} = \\frac{1}{mc_p} (\\frac{u(t)}{512} \\dot{Q} - (T - 30)Ah)";
     result += "\\end{matrix}"
     return result;
   }
@@ -744,7 +800,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     let result = "\\begin{array}{c}";
 
     result += "e(t) = T_{s} - T \\\\";
-    result += "u(t) = " + valve.toString() + " \\\\";
+    result += "u(t) = " + output + " \\\\";
     result += theory.latexSymbol + "=\\max\\rho^{" + publicationExponent + "}";
     result += "\\end{array}"
     return result;
@@ -755,6 +811,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_11, () => achieve
     result += "T =" + Math.fround(T).toPrecision(5);
     result += ",\\,T_{s} =" + setPoint.toPrecision(3) + ",\\ e(t) = " + Math.fround(error[0]).toPrecision(3);
     result += ",\\, r =" + r;
+    if (p1.isAvailable) result += ",\\, P =" + P;
     return result;
   }
 }
@@ -763,20 +820,20 @@ var getCustomCost = (level) => {
   switch (level) {
     case 0: result = 10; break; // autoKicker
     case 1: result = 35; break; // r1Exponent and c1Exponent
-    case 2: result = 60; break;
-    case 3: result = 85; break;
-    case 4: result = 110; break;
-    case 5: result = 125; break;
-    case 6: result = 150; break;
-    case 7: result = 175; break; // r2Exponent and c1Base
-    case 8: result = 215; break;
-    case 9: result = 235; break;
-    case 10: result = 270; break;
-    case 11: result = 290; break; // rExponent
-    case 12: result = 315; break;
-    case 13: result = 440; break; // r3
+    case 2: result = 50; break;
+    case 3: result = 65; break;
+    case 4: result = 90; break;
+    case 5: result = 110; break;
+    case 6: result = 130; break;
+    case 7: result = 150; break; // r2Exponent and c1Base
+    case 8: result = 200; break;
+    case 9: result = 325; break;
+    case 10: result = 375; break;
+    case 11: result = 400; break; // rExponent
+    case 12: result = 420; break;
+    case 13: result = 440; break; // c2
   }
-  return result * 0.2;
+  return result * 0.6;
 }
 var getC1Exp = (level) => BigNumber.from(1 + c1Exponent.level * 0.05);
 var getRExp = (level) => BigNumber.from(1 + rExponent.level * 0.001);
@@ -785,13 +842,16 @@ var getR2Exp = (level) => BigNumber.from(1 + r2Exponent.level * r2ExponentScale)
 var getC1 = (level) => BigNumber.from(C1Base + c1BaseUpgrade.level * 0.125).pow(level);
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
 var getR2 = (level) => BigNumber.TWO.pow(level);
-var getR3 = (level) => BigNumber.E.pow(level);
+var getP1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 1);
+var getP2 = (level) => BigNumber.TWO.pow(level);
+var getC2 = (level) => BigNumber.E.pow(level);
 var getTdotExponent = (level) => 2 + level;
-var getPublicationMultiplier = (tau) => achievementMultiplierUpgrade.level >= 1 ? achievementMultiplier * tau.pow(0.5) / 2 : tau.pow(0.5) / 2;
-var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level >= 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times \\frac{" + symbol + "^{0.5}}{2}" : "\\frac{" + symbol + "^{0.5}}{2}");
+let tauExponent = 0.2 / 0.6;
+var getPublicationMultiplier = (tau) => achievementMultiplierUpgrade.level >= 1 ? achievementMultiplier * tau.pow(tauExponent) / 2 : tau.pow(tauExponent) / 2;
+var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level >= 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times \\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}" : "\\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}");
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
-var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(5), rho.symbol];
+var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(5 / 3), rho.symbol];
 var postPublish = () => {
   initialiseSystem();
   theory.invalidatePrimaryEquation();
