@@ -241,7 +241,7 @@ var init = () => {
   {
     let getDesc = (level) => "p_1=" + Utils.getStepwisePowerSum(level, 2, 10, 1).toString(0);
     let getInfo = (level) => "p_1=" + Utils.getStepwisePowerSum(level, 2, 10, 1).toString(0);
-    p1 = theory.createUpgrade(6, rho, new ExponentialCost(BigNumber.TEN.pow(750), Math.log2(1e5)));
+    p1 = theory.createUpgrade(6, rho, new ExponentialCost(BigNumber.TEN.pow(750), Math.log2(16.60964)));
     p1.getDescription = (_) => Utils.getMath(getDesc(p1.level));
     p1.getInfo = (amount) => Utils.getMathTo(getInfo(p1.level), getInfo(p1.level + amount));
     p1.isAvailable = achievementMultiplier >= 30;
