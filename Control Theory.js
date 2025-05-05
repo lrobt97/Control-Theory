@@ -15,11 +15,18 @@ The output of your PID system will be an integer between 0-512 (denoted by u(t) 
 \n \
 An output of 0 allows the system to be air cooled under ambient conditions (30°C), with no heater output. \n \
 \n \
-Eventually, you will be able to tune the controller for yourself. While doing so, you will face various constraints and challenges which you must overcome to progress within this custom theory."
+Eventually, you will be able to tune the controller for yourself. While doing so, you will face various constraints and challenges which you must overcome to progress within this custom theory. \n \
+\n \
+System variables: \n \
+Q = 20 max heat duty in W \n \
+  h = 5 thermal passive convection coefficient for Al (W/m^2 k) \n \
+  Cp = 0.89 heat capacity for Al (J/g/K) \n \
+  area = 0.024 area of element (m^2) \n \
+  mass = 10 grams "
 
 var authors = "Gaunter#1337, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "2.0.0";
-var publicationExponent = 0.6;
+var version = "2.1.0";
+var publicationExponent = 0.45;
 var achievements;
 requiresGameVersion("1.4.29");
 
@@ -241,7 +248,7 @@ var init = () => {
   {
     let getDesc = (level) => "p_1=" + Utils.getStepwisePowerSum(level, 2, 10, 1).toString(0);
     let getInfo = (level) => "p_1=" + Utils.getStepwisePowerSum(level, 2, 10, 1).toString(0);
-    p1 = theory.createUpgrade(6, rho, new ExponentialCost(BigNumber.TEN.pow(750), Math.log2(16.60964)));
+    p1 = theory.createUpgrade(6, rho, new ExponentialCost(BigNumber.TEN.pow(750), Math.log2(1e5)));
     p1.getDescription = (_) => Utils.getMath(getDesc(p1.level));
     p1.getInfo = (amount) => Utils.getMathTo(getInfo(p1.level), getInfo(p1.level + amount));
     p1.isAvailable = achievementMultiplier >= 30;
@@ -395,7 +402,7 @@ The committee gasps. \n \
 You explain that reflecting on your past 'achievements', you believe you have found a way to make the system even more efficient. \n \
 They reply that they have high expectations for your future work. \n \
 ";
-theory.createStoryChapter(9, "Award Winner", storychaper_9, () => theory.tau > BigNumber.from("1e360"));
+theory.createStoryChapter(9, "Award Winner", storychaper_9, () => theory.tau > BigNumber.from(1e360));
 
 // All achievements unlocked
 let storychaper_10 =
@@ -648,7 +655,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
               verticalTextAlignment: TextAlignment.CENTER,
               fontSize: 12,
               text: Utils.getMath("\\begin{matrix} \
-                e_n = T - T_{s} \\\\ \
+                e_n = T_{s} - T \\\\ \
                 u(t) = K_p e_n + K_i\\sum_{0}^{n} ( e_i ) + K_d(e_n - e_{n-1}) \
                 \\end{matrix}")
             }),
@@ -846,12 +853,12 @@ var getP1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 1);
 var getP2 = (level) => BigNumber.TWO.pow(level);
 var getC2 = (level) => BigNumber.E.pow(level);
 var getTdotExponent = (level) => 2 + level;
-let tauExponent = 0.2 / 0.6;
+let tauExponent = 0.2 / publicationExponent;
 var getPublicationMultiplier = (tau) => achievementMultiplierUpgrade.level >= 1 ? achievementMultiplier * tau.pow(tauExponent) / 2 : tau.pow(tauExponent) / 2;
 var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level >= 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times \\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}" : "\\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}");
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
-var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(5 / 3), rho.symbol];
+var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(1 / publicationExponent), rho.symbol];
 var postPublish = () => {
   initialiseSystem();
   theory.invalidatePrimaryEquation();
