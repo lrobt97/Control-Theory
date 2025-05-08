@@ -257,7 +257,7 @@ var init = () => {
   }
   //Tdot exponent
   {
-    let getInfo = (level) => "\\dot{T}^{" + (level + 2) + "}";
+    let getInfo = (level) => "|\\dot{T}|^{" + (level + 2) + "}";
     let getDesc = (_) => Localization.getUpgradeIncCustomExpDesc("\\dot{T}", 1);
     tDotExponent = theory.createUpgrade(5, rho, new ExponentialCost(1e15, Math.log2(1000)));
     tDotExponent.maxLevel = 100;
@@ -862,7 +862,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     let r2_exp = r2Exponent.level > 0 ? getR2Exp(r2Exponent.level).toNumber() : "";
     let c2_string = unlockC2.level > 0 ? "c_2" : "";
     let P_string = p1.isAvailable? "P":""
-    result += "\\dot{\\rho} = " + P_string + " r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp + "} "+ c2_string + "\\dot{T}^{" + getTdotExponent(tDotExponent.level) + "}}";
+    result += "\\dot{\\rho} = " + P_string + " r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp + "} "+ c2_string + "|\\dot{T}|^{" + getTdotExponent(tDotExponent.level) + "}}";
     result += "\\\\ \\dot{r} = \\frac{r_1^{" + r1_exp + "} r_2^{" + r2_exp + "}}{1+\\log_{10}(1 + \|e(t)\|)}"
     if (p1.isAvailable) result += ",\\ \\dot{P} = p_1 p_2 \\frac{T}{100}";
     result += "\\\\ \\dot{T} = \\frac{1}{mc_p} (\\frac{u(t)}{512} \\dot{Q} - (T - 30)Ah)";
