@@ -5,6 +5,7 @@ import { theory } from "../api/Theory";
 import { Utils } from "../api/Utils";
 import { TouchType } from "../api/UI/properties/TouchType";
 import { json } from "stream/consumers";
+import { ui } from "../api/UI"; // Ensure the UI module is imported
 var id = "temperature_control";
 var name = "Temperature Control";
 var description =
@@ -74,7 +75,10 @@ presets = Array.from({ length: 3 }, (_, i) => {;
     kd: 0, 
     setPoint: 30,
     autoKickerEnabled: false,
-    amplitude: 125,};
+    amplitude: 125,
+    frequency: 1.2,
+    name: "Preset " + (i + 1),
+  };
 });
 C1Base = 2.75;
 r2ExponentScale = 0.03;
@@ -108,6 +112,94 @@ var initialiseSystem = () => {
   achievementMultiplier = 30;
   maximumPublicationTdot = BigNumber.ZERO;
 }
+
+const displayPresetMenu = () => {
+  let menu = ui.createPopup({
+    title: "Preset Menu",
+    content: ui.createStackLayout({
+      children: Array.from({ length: 3 }, (_, i) => {
+        return ui.createGrid({
+          columnDefinitions: ["2*", "1*", "1*", "1*"],
+          backgroundColor: i % 2 === 0 ? Color.DARK_BACKGROUND : Color.TRANSPARENT,
+          children: [
+            ui.createLabel({ 
+              text: `${presets[i].name}`, 
+              verticalOptions: LayoutOptions.CENTER, 
+              horizontalOptions: LayoutOptions.START,
+              margin: new Thickness(0, 0, 10, 0),
+              row: 0,
+              column: 0,
+            }),
+            ui.createButton({
+              text: "Save",
+              onClicked: () => {
+                presets[i] = {
+                  name: presets[i].name,
+                  kp: parseFloat(kp.toFixed(2)),
+                  ki: parseFloat(ki.toFixed(2)),
+                  kd: parseFloat(kd.toFixed(2)),
+                  setPoint: parseFloat(setPoint.toFixed(2)),
+                  amplitude: parseFloat(amplitude.toFixed(2)),
+                  frequency: parseFloat(frequency.toFixed(2)),
+                  autoKickerEnabled: autoKickerEnabled,
+                };
+              },
+              row: 0,
+              column: 1,
+            }),
+            ui.createButton({
+              text: "Load",
+              onClicked: () => {
+                timer = 0;
+                if (presets[i]) {
+                  kp = presets[i].kp;
+                  ki = presets[i].ki;
+                  kd = presets[i].kd;
+                  setPoint = presets[i].setPoint;
+                  amplitude = presets[i].amplitude;
+                  log("Frequency: " + presets[i].frequency);
+                  frequency = presets[i].frequency;
+                  autoKickerEnabled = presets[i].autoKickerEnabled;
+                }
+              },
+              row: 0,
+              column: 2,
+            }),
+            ui.createButton({
+              text: "Rename",
+              onClicked: () => {
+                let presetNameInput = ui.createEntry({
+                  text: presets[i].name,
+                });
+                let renamePopup = ui.createPopup({
+                  title: `Rename ${presets[i].name}`,
+                  content: ui.createStackLayout({
+                    children: [
+                      presetNameInput,
+                      ui.createButton({
+                        text: "Save",
+                        onClicked: () => {
+                          presets[i].name = presetNameInput.text;
+                          renamePopup.hide();
+                          menu.hide();
+                        },
+                      }),
+                    ],
+                  }),
+                });
+                renamePopup.show();
+              },
+              row: 0,
+              column: 3,
+            }),
+          ],
+        });
+      }),
+    }),
+  });
+  menu.show();
+};
+
 // Upgrades
 var c1, r1, r2, c2, kickT, changePidValues, autoKick, exponentCap, achievementMultiplierUpgrade, tDotExponent, presetMenu;;
 
@@ -202,7 +294,7 @@ var init = () => {
     presetMenu = theory.createSingularUpgrade(6, rho, new FreeCost());
     presetMenu.getDescription = (_) => "Preset Menu";
     presetMenu.getInfo = (_) => "Allows you to save and load system values.";
-    presetMenu.boughtOrRefunded = (_) => { 
+    presetMenu.bought = (_) => { 
       presetMenu.level = 0;
       displayPresetMenu();
       presetMenu.isAvailable = changePidValues.level > 0 && autoKick.level > 0;
@@ -452,11 +544,12 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     presetMenu.isAvailable = changePidValues.level > 0 && autoKick.level > 0;
   }
 
-  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ki.toString()} ${kd.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency} ${maximumPublicationTdot} ${P} ${JSON.stringify(presets)}`;
+  var getInternalState = () => 
+    `${T.toString()}|${error[0].toString()}|${integral.toString()}|${kp.toString()}|${ki.toString()}|${kd.toString()}|${valve.toString()}|${publicationCount.toString()}|${r}|${autoKickerEnabled}|${cycleEstimate}|${setPoint}|${rEstimate}|${amplitude}|${frequency}|${maximumPublicationTdot}|${P}|${JSON.stringify(presets)}`;
 
   var setInternalState = (state) => {
     debug = state;
-    let values = state.split(" ");
+    let values = state.split("|");
     if (values.length > 0) T = parseFloat(values[0]);
     if (values.length > 1) error[0] = parseFloat(values[1]);
     if (values.length > 2) integral = parseFloat(values[2]);
@@ -464,7 +557,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     if (values.length > 4) ki = parseFloat(values[4]);
     if (values.length > 5) kd = parseFloat(values[5]);
     if (values.length > 6) valve = parseFloat(values[6]);
-    if (values.length > 7) publicationCount = parseFloat(values[7])
+    if (values.length > 7) publicationCount = parseFloat(values[7]);
     if (values.length > 8) r = parseBigNumber(values[8]);
     if (values.length > 9) autoKickerEnabled = values[9] == "true";
     if (values.length > 10) cycleEstimate = parseBigNumber(values[10]);
@@ -473,10 +566,10 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     if (values.length > 13) amplitude = parseFloat(values[13]);
     if (values.length > 14) frequency = parseFloat(values[14]);
     if (values.length > 15) maximumPublicationTdot = parseBigNumber(values[15]);
-    if (values.length > 16) P = parseBigNumber(values[16])
+    if (values.length > 16) P = parseBigNumber(values[16]);
+    log(state);
     if (values.length > 17) presets = JSON.parse(values[17]);
   }
-
   var updatePidValues = () => {
     kp = newKp;
     kd = newKd;
@@ -615,7 +708,6 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     return menu;
   }
   const viewPIDInfoMenu = () => {
-    log("Hello")
     let menu = ui.createPopup({
       title: "PID Menu Guide",
       content:
@@ -725,57 +817,10 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     })
 
     setPointSlider.maximum = Tc + Q / h / area;
-    log(setPointSlider.maximum)
     setPointSlider.minimum = Tc + 20;
     setPointSlider.value = setPoint;
     return menu;
   }
-
-  const displayPresetMenu = () => {
-    let menu = ui.createPopup({
-      title: "Preset Menu",
-      content: ui.createStackLayout({
-      children: Array.from({ length: 3 }, (_, i) => {
-        let presetNumber = i + 1;
-        return ui.createStackLayout({
-        orientation: StackOrientation.HORIZONTAL,
-        children: [
-          ui.createLabel({ text: `Preset ${presetNumber}`, verticalOptions: LayoutOptions.CENTER }),
-          ui.createButton({
-          text: "Save",
-          onClicked: () => {
-            presets[i] = {
-              kp: kp,
-              ki: ki,
-              kd: kd,
-              setPoint: setPoint,
-              amplitude: amplitude,
-              frequency: frequency,
-              autoKickerEnabled: autoKickerEnabled,
-            }
-          }
-          }),
-          ui.createButton({
-          text: "Load",
-          onClicked: () => {
-            if (presets[i]) {
-              kp = presets[i].kp;
-              ki = presets[i].ki;
-              kd = presets[i].kd;
-              setPoint = presets[i].setPoint;
-              amplitude = presets[i].amplitude;
-              frequency = presets[i].frequency;
-              autoKickerEnabled = presets[i].autoKickerEnabled;
-            } 
-          }
-          })
-        ]
-        });
-      })
-      })
-    });
-    return menu;
-  };
 
   var resetStage = () => {
     c1.level = 0;
