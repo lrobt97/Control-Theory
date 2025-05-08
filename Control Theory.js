@@ -4,6 +4,7 @@ import { parseBigNumber, BigNumber } from "../api/BigNumber";
 import { theory } from "../api/Theory";
 import { Utils } from "../api/Utils";
 import { TouchType } from "../api/UI/properties/TouchType";
+import { json } from "stream/consumers";
 var id = "temperature_control";
 var name = "Temperature Control";
 var description =
@@ -65,6 +66,16 @@ kd = 0;
 amplitude = 125;
 autoKickerEnabled = false;
 frequency = 1.2;
+presets = Array.from({ length: 3 }, (_, i) => {;
+  return { 
+    T: 5, 
+    kp: 0, 
+    ki: 0, 
+    kd: 0, 
+    setPoint: 30,
+    autoKickerEnabled: false,
+    amplitude: 125,};
+});
 C1Base = 2.75;
 r2ExponentScale = 0.03;
 publicationCount = 0;
@@ -98,7 +109,7 @@ var initialiseSystem = () => {
   maximumPublicationTdot = BigNumber.ZERO;
 }
 // Upgrades
-var c1, r1, r2, c2, kickT, changePidValues, autoKick, exponentCap, achievementMultiplierUpgrade, tDotExponent;
+var c1, r1, r2, c2, kickT, changePidValues, autoKick, exponentCap, achievementMultiplierUpgrade, tDotExponent, presetMenu;;
 
 // Milestones
 var c1Exponent, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade, unlockC2;
@@ -187,6 +198,16 @@ var init = () => {
     achievementMultiplierUpgrade.getInfo = (_) => "Multiplies income by " + calculateAchievementMultiplier().toPrecision(3);
   }
 
+  {
+    presetMenu = theory.createSingularUpgrade(6, rho, new FreeCost());
+    presetMenu.getDescription = (_) => "Preset Menu";
+    presetMenu.getInfo = (_) => "Allows you to save and load system values.";
+    presetMenu.boughtOrRefunded = (_) => { 
+      presetMenu.level = 0;
+      displayPresetMenu();
+      presetMenu.isAvailable = changePidValues.level > 0 && autoKick.level > 0;
+     }
+  }
   /////////////////////
   // Upgrades
 
@@ -428,9 +449,10 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     rExponent.isAvailable = unlockC2.level >= 1 && c1BaseUpgrade.level >= 2;
     p1.isAvailable = calculateAchievementMultiplier() >= 30;
     p2.isAvailable = calculateAchievementMultiplier() >= 30;
+    presetMenu.isAvailable = changePidValues.level > 0 && autoKick.level > 0;
   }
 
-  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ki.toString()} ${kd.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency} ${maximumPublicationTdot} ${P}`;
+  var getInternalState = () => `${T.toString()} ${error[0].toString()} ${integral.toString()} ${kp.toString()} ${ki.toString()} ${kd.toString()} ${valve.toString()} ${publicationCount.toString()} ${r} ${autoKickerEnabled} ${cycleEstimate} ${setPoint} ${rEstimate} ${amplitude} ${frequency} ${maximumPublicationTdot} ${P} ${JSON.stringify(presets)}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -452,6 +474,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     if (values.length > 14) frequency = parseFloat(values[14]);
     if (values.length > 15) maximumPublicationTdot = parseBigNumber(values[15]);
     if (values.length > 16) P = parseBigNumber(values[16])
+    if (values.length > 17) presets = JSON.parse(values[17]);
   }
 
   var updatePidValues = () => {
@@ -467,8 +490,8 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
   var newKd = kd;
   var newSetPoint = setPoint;
 
-  // Allows the user to reset post e100 tau for challenge runs
-  var canResetStage = () => theory.tau > BigNumber.from(1e100);
+  // Allows the user to reset post e360 tau for challenge runs
+  var canResetStage = () => theory.tau > BigNumber.TEN.pow(360);
 
   var getEquationOverlay = () => {
     return ui.createGrid({
@@ -708,6 +731,52 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     return menu;
   }
 
+  const displayPresetMenu = () => {
+    let menu = ui.createPopup({
+      title: "Preset Menu",
+      content: ui.createStackLayout({
+      children: Array.from({ length: 3 }, (_, i) => {
+        let presetNumber = i + 1;
+        return ui.createStackLayout({
+        orientation: StackOrientation.HORIZONTAL,
+        children: [
+          ui.createLabel({ text: `Preset ${presetNumber}`, verticalOptions: LayoutOptions.CENTER }),
+          ui.createButton({
+          text: "Save",
+          onClicked: () => {
+            presets[i] = {
+              kp: kp,
+              ki: ki,
+              kd: kd,
+              setPoint: setPoint,
+              amplitude: amplitude,
+              frequency: frequency,
+              autoKickerEnabled: autoKickerEnabled,
+            }
+          }
+          }),
+          ui.createButton({
+          text: "Load",
+          onClicked: () => {
+            if (presets[i]) {
+              kp = presets[i].kp;
+              ki = presets[i].ki;
+              kd = presets[i].kd;
+              setPoint = presets[i].setPoint;
+              amplitude = presets[i].amplitude;
+              frequency = presets[i].frequency;
+              autoKickerEnabled = presets[i].autoKickerEnabled;
+            } 
+          }
+          })
+        ]
+        });
+      })
+      })
+    });
+    return menu;
+  };
+
   var resetStage = () => {
     c1.level = 0;
     r1.level = 0;
@@ -718,7 +787,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     tDotExponent.level = 0;
     rho.value = BigNumber.ZERO;
     initialiseSystem();
-  }
+  };
 
   var tick = (elapsedTime, multiplier) => {
     let dt = BigNumber.from(elapsedTime * multiplier);
