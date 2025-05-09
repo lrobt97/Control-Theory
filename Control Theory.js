@@ -290,6 +290,16 @@ var init = () => {
     achievementMultiplierUpgrade.getInfo = (_) => "Multiplies income by " + calculateAchievementMultiplier().toPrecision(3);
   }
 
+  // Preset Menu Unlock
+  {
+    let unlockPresetMenu = theory.createPermanentUpgrade(7, rho, new CustomCost(_ => BigNumber.from(10).pow(100)));
+    unlockPresetMenu.maxLevel = 1;
+    unlockPresetMenu.getDescription = (_) => Utils.getUpgradeUnlockDesc("\\text{Preset Menu}");
+    unlockPresetMenu.getInfo = (_) => Utils.getMath("\\text{Allows access to the Preset Menu for saving and loading system values.}");
+    unlockPresetMenu.bought = (_) => {
+      presetMenu.isAvailable = true;
+    };
+  }
   {
     presetMenu = theory.createSingularUpgrade(6, rho, new FreeCost());
     presetMenu.getDescription = (_) => "Preset Menu";
@@ -297,7 +307,7 @@ var init = () => {
     presetMenu.bought = (_) => { 
       presetMenu.level = 0;
       displayPresetMenu();
-      presetMenu.isAvailable = changePidValues.level > 0 && autoKick.level > 0;
+      presetMenu.isAvailable = unlockPresetMenu.level > 0;
      }
   }
   /////////////////////
@@ -541,7 +551,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     rExponent.isAvailable = unlockC2.level >= 1 && c1BaseUpgrade.level >= 2;
     p1.isAvailable = calculateAchievementMultiplier() >= 30;
     p2.isAvailable = calculateAchievementMultiplier() >= 30;
-    presetMenu.isAvailable = changePidValues.level > 0 && autoKick.level > 0;
+    presetMenu.isAvailable = unlockPresetMenu.level > 0;
   }
 
   var getInternalState = () => 
