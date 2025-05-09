@@ -45,6 +45,7 @@ var rEstimateLabel;
 var rhoEstimateText = Utils.getMath("\\text{Average cycle } \\dot{\\rho} \\text{: } ");
 var rhoEstimateLabel;
 var autoTemperatureBar;
+var pTargetTemperature = 100;
 
 // UI image size
 var getImageSize = (width) => {
@@ -111,6 +112,7 @@ var initialiseSystem = () => {
   baseTolerance = 5;
   achievementMultiplier = 30;
   maximumPublicationTdot = BigNumber.ZERO;
+  pTargetTemperature = Math.floor(Math.random() * (125 - 75 + 1)) + 75;
 }
 
 const displayPresetMenu = () => {
@@ -555,7 +557,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
   }
 
   var getInternalState = () => 
-    `${T.toString()}|${error[0].toString()}|${integral.toString()}|${kp.toString()}|${ki.toString()}|${kd.toString()}|${valve.toString()}|${publicationCount.toString()}|${r}|${autoKickerEnabled}|${cycleEstimate}|${setPoint}|${rEstimate}|${amplitude}|${frequency}|${maximumPublicationTdot}|${P}|${JSON.stringify(presets)}`;
+    `${T.toString()}|${error[0].toString()}|${integral.toString()}|${kp.toString()}|${ki.toString()}|${kd.toString()}|${valve.toString()}|${publicationCount.toString()}|${r}|${autoKickerEnabled}|${cycleEstimate}|${setPoint}|${rEstimate}|${amplitude}|${frequency}|${maximumPublicationTdot}|${P}|${pTargetTemperature}|${JSON.stringify(presets)}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -577,9 +579,10 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     if (values.length > 14) frequency = parseFloat(values[14]);
     if (values.length > 15) maximumPublicationTdot = parseBigNumber(values[15]);
     if (values.length > 16) P = parseBigNumber(values[16]);
-    log(state);
-    if (values.length > 17) presets = JSON.parse(values[17]);
+    if (values.length > 17) pTargetTemperature = parseFloat(values[17]);
+    if (values.length > 18) presets = JSON.parse(values[18]);
   }
+
   var updatePidValues = () => {
     kp = newKp;
     kd = newKd;
@@ -878,7 +881,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     T = 30 + (suppliedHeat - exponentialTerm) / (h * area)
 
     let dp = 0;
-    if (achievementMultiplier >= 30) dp = getP1(p1.level) * getP2(p2.level) * T / 100
+    if (achievementMultiplier >= 30) dp = getP1(p1.level) * getP2(p2.level) * BigNumber.E.pow(-0.01 * Math.abs(T - pTargetTemperature));
     P += dp * dt;
     let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level)) / (1 + Math.log10(1 + Math.abs(error[0])));
     rEstimate = rEstimate * 0.95 + dr * 0.05;
@@ -919,7 +922,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     let P_string = p1.isAvailable? "P":""
     result += "\\dot{\\rho} = " + P_string + " r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp + "} "+ c2_string + "|\\dot{T}|^{" + getTdotExponent(tDotExponent.level) + "}}";
     result += "\\\\ \\dot{r} = \\frac{r_1^{" + r1_exp + "} r_2^{" + r2_exp + "}}{1+\\log_{10}(1 + \|e(t)\|)}"
-    if (p1.isAvailable) result += ",\\ \\dot{P} = p_1 p_2 \\frac{T}{100}";
+    if (p1.isAvailable) result += ",\\ \\dot{P} = p_1 p_2 e^{-0.01|T-" + pTargetTemperature + "|}";
     result += "\\\\ \\dot{T} = \\frac{1}{mc_p} (\\frac{u(t)}{512} \\dot{Q} - (T - 30)Ah)";
     result += "\\end{matrix}"
     return result;
