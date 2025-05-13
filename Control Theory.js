@@ -112,7 +112,6 @@ var initialiseSystem = () => {
   baseTolerance = 5;
   achievementMultiplier = 30;
   maximumPublicationTdot = BigNumber.ZERO;
-  pTargetTemperature = Math.floor(Math.random() * (125 - 75 + 1)) + 75;
 }
 
 const displayPresetMenu = () => {
@@ -203,7 +202,7 @@ const displayPresetMenu = () => {
 };
 
 // Upgrades
-var c1, r1, r2, c2, kickT, changePidValues, autoKick, exponentCap, achievementMultiplierUpgrade, tDotExponent, presetMenu;;
+var c1, r1, r2, c2, kickT, changePidValues, autoKick, exponentCap, achievementMultiplierUpgrade, tDotExponent, presetMenu, unlockPresetMenu;
 
 // Milestones
 var c1Exponent, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade, unlockC2;
@@ -294,10 +293,10 @@ var init = () => {
 
   // Preset Menu Unlock
   {
-    let unlockPresetMenu = theory.createPermanentUpgrade(7, rho, new CustomCost(_ => BigNumber.from(10).pow(100)));
+    unlockPresetMenu = theory.createPermanentUpgrade(7, rho, new CustomCost(_ => BigNumber.from(10).pow(100)));
     unlockPresetMenu.maxLevel = 1;
-    unlockPresetMenu.getDescription = (_) => Utils.getUpgradeUnlockDesc("\\text{Preset Menu}");
-    unlockPresetMenu.getInfo = (_) => Utils.getMath("\\text{Allows access to the Preset Menu for saving and loading system values.}");
+    unlockPresetMenu.getDescription = (_) => Localization.getUpgradeUnlockDesc("\\text{Preset Menu}");
+    unlockPresetMenu.getInfo = (_) => Localization.getUpgradeUnlockInfo("\\text{Preset Menu}");
     unlockPresetMenu.bought = (_) => {
       presetMenu.isAvailable = true;
     };
@@ -557,7 +556,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
   }
 
   var getInternalState = () => 
-    `${T.toString()}|${error[0].toString()}|${integral.toString()}|${kp.toString()}|${ki.toString()}|${kd.toString()}|${valve.toString()}|${publicationCount.toString()}|${r}|${autoKickerEnabled}|${cycleEstimate}|${setPoint}|${rEstimate}|${amplitude}|${frequency}|${maximumPublicationTdot}|${P}|${pTargetTemperature}|${JSON.stringify(presets)}`;
+    `${T.toString()}|${error[0].toString()}|${integral.toString()}|${kp.toString()}|${ki.toString()}|${kd.toString()}|${valve.toString()}|${publicationCount.toString()}|${r}|${autoKickerEnabled}|${cycleEstimate}|${setPoint}|${rEstimate}|${amplitude}|${frequency}|${maximumPublicationTdot}|${P}|${JSON.stringify(presets)}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -579,8 +578,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     if (values.length > 14) frequency = parseFloat(values[14]);
     if (values.length > 15) maximumPublicationTdot = parseBigNumber(values[15]);
     if (values.length > 16) P = parseBigNumber(values[16]);
-    if (values.length > 17) pTargetTemperature = parseFloat(values[17]);
-    if (values.length > 18) presets = JSON.parse(values[18]);
+    if (values.length > 17) presets = JSON.parse(values[17]);
   }
 
   var updatePidValues = () => {
@@ -942,7 +940,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
 
   var getTertiaryEquation = () => {
     let result = "";
-    result += "T =" + Math.fround(T).toPrecision(5);
+    result += "T =" + Math.fround(T).toPrecision(3);
     result += ",\\,T_{s} =" + setPoint.toPrecision(3) + ",\\ e(t) = " + Math.fround(error[0]).toPrecision(3);
     result += ",\\, r =" + r;
     if (p1.isAvailable) result += ",\\, P =" + P;
@@ -967,7 +965,7 @@ var getCustomCost = (level) => {
     case 12: result = 420; break;
     case 13: result = 440; break; // c2
   }
-  return result * 0.6;
+  return result * publicationExponent;
 }
 var getC1Exp = (level) => BigNumber.from(1 + c1Exponent.level * 0.05);
 var getRExp = (level) => BigNumber.from(1 + rExponent.level * 0.001);
