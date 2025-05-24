@@ -68,19 +68,7 @@ kd = 0;
 amplitude = 125;
 autoKickerEnabled = false;
 frequency = 1.2;
-presets = Array.from({ length: 3 }, (_, i) => {;
-  return { 
-    T: 5, 
-    kp: 0, 
-    ki: 0, 
-    kd: 0, 
-    setPoint: 30,
-    autoKickerEnabled: false,
-    amplitude: 125,
-    frequency: 1.2,
-    name: "Preset " + (i + 1),
-  };
-});
+presets = [];
 C1Base = 2.75;
 r2ExponentScale = 0.03;
 publicationCount = 0;
@@ -112,13 +100,26 @@ var initialiseSystem = () => {
   baseTolerance = 5;
   achievementMultiplier = 30;
   maximumPublicationTdot = BigNumber.ZERO;
+  if (presets.length == 0) {
+    presets = Array.from({ length: 3 }, (_, i) => ({
+      T: 5,
+      kp: 0,
+      ki: 0,
+      kd: 0,
+      setPoint: 30,
+      autoKickerEnabled: false,
+      amplitude: 125,
+      frequency: 1.2,
+      name: "Preset " + (i + 1),
+    }));
+  }
 }
 
 const displayPresetMenu = () => {
   let menu = ui.createPopup({
     title: "Preset Menu",
     content: ui.createStackLayout({
-      children: Array.from({ length: 3 }, (_, i) => {
+      children: Array.from({ length: presets.length }, (_, i) => {
         return ui.createGrid({
           columnDefinitions: ["2*", "1*", "1*", "1*"],
           backgroundColor: i % 2 === 0 ? Color.DARK_BACKGROUND : Color.TRANSPARENT,
@@ -202,10 +203,13 @@ const displayPresetMenu = () => {
 };
 
 // Upgrades
-var c1, r1, r2, c2, kickT, changePidValues, autoKick, exponentCap, achievementMultiplierUpgrade, tDotExponent, presetMenu, unlockPresetMenu;
+var c1, r1, r2, c2, kickT, tDotExponent, presetMenu, unlockPresetMenu;
+
+// Permanent upgrades
+var changePidValues, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade, achievementMultiplierUpgrade;
 
 // Milestones
-var c1Exponent, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade, unlockC2;
+var autoKick, unlockKi, unlockKd, c1Exponent,  unlockC2, improvePFormula;
 
 var init = () => {
   rho = theory.createCurrency();
@@ -224,42 +228,32 @@ var init = () => {
     autoKick.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
     autoKick.canBeRefunded = () => false;
   }
+  // Unlock k_i
   {
-    c1Exponent = theory.createMilestoneUpgrade(1, 3);
-    c1Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("c_1", 0.05)
-    c1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("c_1", "0.05")
-    c1Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+    unlockKi = theory.createMilestoneUpgrade(8, 1);
+    unlockKi.maxLevel = 1;
+    unlockKi.getDescription = (_) => "Unlock $K_i$ (Integral Gain)";
+    unlockKi.getInfo = (_) => "Allows tuning of the integral gain $K_i$ in the PID controller.";
+    unlockKi.canBeRefunded = () => false;
   }
 
+  // Unlock k_d
   {
-    r1Exponent = theory.createMilestoneUpgrade(2, 3);
-    r1Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r_1", 0.05);
-    r1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r_1", "0.05");
-    r1Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+    unlockKd = theory.createMilestoneUpgrade(9, 1);
+    unlockKd.maxLevel = 1;
+    unlockKd.getDescription = (_) => "Unlock $K_d$ (Derivative Gain)";
+    unlockKd.getInfo = (_) => "Allows tuning of the derivative gain $K_d$ in the PID controller.";
+    unlockKd.canBeRefunded = () => false;
   }
-  {
-    r2Exponent = theory.createMilestoneUpgrade(3, 2);
-    r2Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r_2", r2ExponentScale);
-    r2Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r_2", r2ExponentScale);
-    r2Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
-    r2Exponent.canBeRefunded = () => unlockC2.level == 0 && rExponent.level == 0;
-  }
-  {
-    c1BaseUpgrade = theory.createMilestoneUpgrade(4, 2);
-    c1BaseUpgrade.getInfo = (_) => "Increases $c_1$ base by " + 0.125;
-    c1BaseUpgrade.getDescription = (_) => "$\\uparrow \\ c_1$ base by " + 0.125;
-    c1BaseUpgrade.boughtOrRefunded = (_) => updateAvailability();
-    c1BaseUpgrade.canBeRefunded = () => unlockC2.level == 0 && rExponent.level == 0;
-  }
-
   {
     rExponent = theory.createMilestoneUpgrade(5, 2);
-    rExponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r", 0.001);
+    rExponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r", 0.001);  
+    rExponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r", 0.001);
+    rExponent.boughtOrRefunded = (_) => {
+      updateAvailability(); theory.invalidatePrimaryEquation();
+    }
   }
-  rExponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r", 0.001);
-  rExponent.boughtOrRefunded = (_) => {
-    updateAvailability(); theory.invalidatePrimaryEquation();
-  }
+
   {
     unlockC2 = theory.createMilestoneUpgrade(6, 1);
     unlockC2.getDescription = (_) => Localization.getUpgradeAddTermDesc("c_2");
@@ -267,6 +261,14 @@ var init = () => {
     unlockC2.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
   }
 
+  // Improve P Formula Milestone
+  {
+    improvePFormula = theory.createMilestoneUpgrade(7, 2);
+    improvePFormula.maxLevel = 2;
+    improvePFormula.getDescription = (_) => `Improve $\\dot{P}$ formula`;
+    improvePFormula.getInfo = (_) => `$\\dot{P} = p_1 p_2 e^{${(-0.01 * Math.pow(0.8, improvePFormula.level)).toPrecision(2)} |T-${pTargetTemperature}|}$`;
+    improvePFormula.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); };
+  }
 
   /////////////////////
   // Permanent Upgrades
@@ -279,19 +281,7 @@ var init = () => {
     changePidValues.getDescription = (_) => Localization.getUpgradeUnlockDesc("\\text{PID Menu}");
     changePidValues.getInfo = (_) => Localization.getUpgradeUnlockInfo("\\text{PID Menu}");
   }
-
-  theory.createBuyAllUpgrade(3, rho, 1e10);
-  theory.createAutoBuyerUpgrade(4, rho, 1e20);
-
-  // Achievement Multiplier
-  {
-    achievementMultiplierUpgrade = theory.createPermanentUpgrade(5, rho, new CustomCost(_ => BigNumber.TEN.pow(600)));
-    achievementMultiplierUpgrade.maxLevel = 1;
-    achievementMultiplierUpgrade.getDescription = (_) => "Achievement multiplier"
-    achievementMultiplierUpgrade.getInfo = (_) => "Multiplies income by " + calculateAchievementMultiplier().toPrecision(3);
-  }
-
-  // Preset Menu Unlock
+    // Preset Menu Unlock
   {
     unlockPresetMenu = theory.createPermanentUpgrade(7, rho, new CustomCost(_ => BigNumber.from(10).pow(100)));
     unlockPresetMenu.maxLevel = 1;
@@ -301,6 +291,50 @@ var init = () => {
       presetMenu.isAvailable = true;
     };
   }
+
+  theory.createBuyAllUpgrade(3, rho, 1e10);
+  theory.createAutoBuyerUpgrade(4, rho, 1e20);
+
+  {
+    c1Exponent = theory.createPermanentUpgrade(8, rho, new ExponentialCost(1e30, Math.log2(1e30)));
+    c1Exponent.maxLevel = 3;
+    c1Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("c_1", 0.05);
+    c1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("c_1", "0.05");
+    c1Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+  }
+
+  {
+    r1Exponent = theory.createPermanentUpgrade(9, rho, new ExponentialCost(1e40, Math.log2(1e40)));
+    r1Exponent.maxLevel = 3;
+    r1Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r_1", 0.05);
+    r1Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r_1", "0.05");
+    r1Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+  }
+
+  {
+    r2Exponent = theory.createPermanentUpgrade(10, rho, new ExponentialCost(1e150, Math.log2(1e175)));
+    r2Exponent.maxLevel = 2;
+    r2Exponent.getDescription = (_) => Localization.getUpgradeIncCustomExpDesc("r_2", r2ExponentScale);
+    r2Exponent.getInfo = (_) => Localization.getUpgradeIncCustomExpInfo("r_2", r2ExponentScale);
+    r2Exponent.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); }
+  }
+
+  {
+    c1BaseUpgrade = theory.createPermanentUpgrade(11, rho, new ExponentialCost(1e200, Math.log2(1e175)));
+    c1BaseUpgrade.maxLevel = 2;
+    c1BaseUpgrade.getInfo = (_) => "Increases $c_1$ base by " + 0.125;
+    c1BaseUpgrade.getDescription = (_) => "$\\uparrow \\ c_1$ base by " + 0.125;
+    c1BaseUpgrade.boughtOrRefunded = (_) => updateAvailability();
+  }
+
+  // Achievement Multiplier
+  {
+    achievementMultiplierUpgrade = theory.createPermanentUpgrade(5, rho, new CustomCost(_ => BigNumber.TEN.pow(600)));
+    achievementMultiplierUpgrade.maxLevel = 1;
+    achievementMultiplierUpgrade.getDescription = (_) => "Achievement multiplier"
+    achievementMultiplierUpgrade.getInfo = (_) => "Multiplies income by " + calculateAchievementMultiplier().toPrecision(3);
+  }
+
   {
     presetMenu = theory.createSingularUpgrade(6, rho, new FreeCost());
     presetMenu.getDescription = (_) => "Preset Menu";
@@ -514,7 +548,7 @@ let storychapter_8 =
   "The Dean contacts you to let you know that the engineering world has taken note of your system. \n \
 They say that you have been nominated for an award for your work. \n \
 You decide to put some finishing touches on your work to impress the awards committee."
-theory.createStoryChapter(8, "Nomination", storychapter_8, () => theory.tau > BigNumber.from(1e270));
+theory.createStoryChapter(8, "Nomination", storychapter_8, () => theory.tau > BigNumber.TEN.pow(270));
 
 // 1e360 tau
 let storychaper_9 =
@@ -526,7 +560,7 @@ The committee gasps. \n \
 You explain that reflecting on your past 'achievements', you believe you have found a way to make the system even more efficient. \n \
 They reply that they have high expectations for your future work. \n \
 ";
-theory.createStoryChapter(9, "Award Winner", storychaper_9, () => theory.tau > BigNumber.from(1e360));
+theory.createStoryChapter(9, "Award Winner", storychaper_9, () => achievementMultiplier.level >= 1);
 
 // All achievements unlocked
 let storychaper_10 =
@@ -543,15 +577,19 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
   // Internal
   var updateAvailability = () => {
     kickT.isAvailable = autoKick.level == 0;
+    unlockKi.isAvailable = autoKick.level >= 1;
+    unlockKd.isAvailable = unlockKi.level >= 1;
     c1Exponent.isAvailable = autoKick.level >= 1;
     r1Exponent.isAvailable = autoKick.level >= 1;
     r2Exponent.isAvailable = c1Exponent.level >= 3 && r1Exponent.level >= 3;
     unlockC2.isAvailable = r2Exponent.level >= 2;
     c2.isAvailable = unlockC2.level > 0;
-    c1BaseUpgrade.isAvailable = c1Exponent.level >= 3 && r1Exponent.level >= 3;
+    c1BaseUpgrade.isAvailable = c1Exponent.level >= 3 && r1Exponent.level >= 3 && c1Exponent.level >= 3 && r1Exponent.level >= 3;
     rExponent.isAvailable = unlockC2.level >= 1 && c1BaseUpgrade.level >= 2;
     p1.isAvailable = calculateAchievementMultiplier() >= 30;
     p2.isAvailable = calculateAchievementMultiplier() >= 30;
+    improvePFormula.isAvailable = calculateAchievementMultiplier() >= 30;
+    unlockPresetMenu.isAvailable = changePidValues.level > 0;
     presetMenu.isAvailable = unlockPresetMenu.level > 0;
   }
 
@@ -798,6 +836,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
             kiTextLabel = ui.createLatexLabel({ text: Utils.getMath(tiText + ki.toString()) }),
             kiSlider = ui.createSlider({
               value: ki,
+              isVisible: () => unlockKi.level > 0,
               minimum: 0,
               maximum: 50,
               onValueChanged: () => {
@@ -808,6 +847,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
             kdTextLabel = ui.createLatexLabel({ text: Utils.getMath(tdText + kd.toString()) }),
             kdSlider = ui.createSlider({
               value: kd,
+              isVisible: () => unlockKd.level > 0,
               minimum: 0,
               maximum: 50,
               onValueChanged: () => {
@@ -920,7 +960,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     let P_string = p1.isAvailable? "P":""
     result += "\\dot{\\rho} = " + P_string + " r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp + "} "+ c2_string + "|\\dot{T}|^{" + getTdotExponent(tDotExponent.level) + "}}";
     result += "\\\\ \\dot{r} = \\frac{r_1^{" + r1_exp + "} r_2^{" + r2_exp + "}}{1+\\log_{10}(1 + \|e(t)\|)}"
-    if (p1.isAvailable) result += ",\\ \\dot{P} = p_1 p_2 e^{-0.01|T-" + pTargetTemperature + "|}";
+    if (achievementMultiplier >= 30) result += `,\\ \\dot{P} = p_1 p_2 e^{${(-0.01 * Math.pow(0.8, improvePFormula.level)).toPrecision(2)} |T-${pTargetTemperature}|}`;
     result += "\\\\ \\dot{T} = \\frac{1}{mc_p} (\\frac{u(t)}{512} \\dot{Q} - (T - 30)Ah)";
     result += "\\end{matrix}"
     return result;
@@ -951,19 +991,13 @@ var getCustomCost = (level) => {
   let result = 1;
   switch (level) {
     case 0: result = 10; break; // autoKicker
-    case 1: result = 35; break; // r1Exponent and c1Exponent
-    case 2: result = 50; break;
-    case 3: result = 65; break;
-    case 4: result = 90; break;
-    case 5: result = 110; break;
-    case 6: result = 130; break;
-    case 7: result = 150; break; // r2Exponent and c1Base
-    case 8: result = 200; break;
-    case 9: result = 325; break;
-    case 10: result = 375; break;
-    case 11: result = 400; break; // rExponent
-    case 12: result = 420; break;
-    case 13: result = 440; break; // c2
+    case 1: result = 50; break; // k_i unlock
+    case 2: result = 100; break; // k_d unlock
+    case 3: result = 400; break; // r exponent 1
+    case 4: result = 420; break; // r exponent 2
+    case 5: result = 440; break; // c2 unlock
+    case 6: result = 950; break; // k reduction 1
+    case 7: result = 1150; break; // k reduction 2
   }
   return result * publicationExponent;
 }
