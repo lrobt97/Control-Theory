@@ -464,7 +464,7 @@ var init = () => {
     // 1e450τ
     theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e535 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(535) && tDotExponent.level == 0)),
     theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e210 while r is still 1.", () => (rho.value > BigNumber.from(1e210) && r == BigNumber.ONE)),
-    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e160 with only 1 upgrade purchased.", () => (rho.value > BigNumber.from(1e155) && (c1.level + r1.level + r2.level + c2.level + tDotExponent.level) <= 1)),
+    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e160 with only 1 upgrade purchased.", () => (rho.value > BigNumber.from(1e160) && (c1.level + r1.level + r2.level + c2.level + tDotExponent.level) <= 1)),
   ];
   updateAvailability();
 }
