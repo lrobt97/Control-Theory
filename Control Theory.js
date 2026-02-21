@@ -27,7 +27,7 @@ Q = 20 max heat duty in W \n \
   mass = 10 grams "
 
 var authors = "Gaunter#1337, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "2.1.0";
+var version = "2.1.1";
 var publicationExponent = 0.45;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -98,7 +98,7 @@ var initialiseSystem = () => {
   rEstimate = BigNumber.ZERO;
   rhoEstimate = BigNumber.ZERO;
   baseTolerance = 5;
-  achievementMultiplier = 30;
+  achievementMultiplier = 1;
   maximumPublicationTdot = BigNumber.ZERO;
   if (presets.length == 0) {
     presets = Array.from({ length: 3 }, (_, i) => ({
@@ -409,7 +409,7 @@ var init = () => {
     p1 = theory.createUpgrade(6, rho, new ExponentialCost(BigNumber.TEN.pow(750), Math.log2(16.61)));
     p1.getDescription = (_) => Utils.getMath(getDesc(p1.level));
     p1.getInfo = (amount) => Utils.getMathTo(getInfo(p1.level), getInfo(p1.level + amount));
-    p1.isAvailable = achievementMultiplier >= 30;
+    p1.isAvailable = calculateAchievementMultiplier() >= 30;
   }
 
   // p2
@@ -419,7 +419,7 @@ var init = () => {
     p2 = theory.createUpgrade(7, rho, new ExponentialCost(BigNumber.TEN.pow(900), Math.log2(1e15)));
     p2.getDescription = (_) => Utils.getMath(getDesc(p2.level));
     p2.getInfo = (amount) => Utils.getMathTo(getInfo(p2.level), getInfo(p2.level + amount));
-    p2.isAvailable = achievementMultiplier >= 30;
+    p2.isAvailable = calculateAchievementMultiplier() >= 30;
   }
   
   systemDt = 0.1;
@@ -560,7 +560,7 @@ The committee gasps. \n \
 You explain that reflecting on your past 'achievements', you believe you have found a way to make the system even more efficient. \n \
 They reply that they have high expectations for your future work. \n \
 ";
-theory.createStoryChapter(9, "Award Winner", storychaper_9, () => achievementMultiplier.level >= 1);
+theory.createStoryChapter(9, "Award Winner", storychaper_9, () => achievementMultiplierUpgrade.level >= 1);
 
 // All achievements unlocked
 let storychaper_10 =
@@ -938,6 +938,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     if (maxTdotLabel) maxTdotLabel.text = maxTdotText + maximumPublicationTdot.toString();
     if (rhoEstimateLabel) rhoEstimateLabel.text = rhoEstimateText + rhoEstimate.toString();
     updateAvailability();
+    theory.invalidatePrimaryEquation();
     theory.invalidateSecondaryEquation();
     theory.invalidateTertiaryEquation();
   }
@@ -960,7 +961,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     let P_string = p1.isAvailable? "P":""
     result += "\\dot{\\rho} = " + P_string + " r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp + "} "+ c2_string + "|\\dot{T}|^{" + getTdotExponent(tDotExponent.level) + "}}";
     result += "\\\\ \\dot{r} = \\frac{r_1^{" + r1_exp + "} r_2^{" + r2_exp + "}}{1+\\log_{10}(1 + \|e(t)\|)}"
-    if (achievementMultiplier >= 30) result += `,\\ \\dot{P} = p_1 p_2 e^{${(-0.01 * Math.pow(0.8, improvePFormula.level)).toPrecision(2)} |T-${pTargetTemperature}|}`;
+    if (calculateAchievementMultiplier() >= 30) result += `,\\ \\dot{P} = p_1 p_2 e^{${(-0.01 * Math.pow(0.8, improvePFormula.level)).toPrecision(2)} |T-${pTargetTemperature}|}`;
     result += "\\\\ \\dot{T} = \\frac{1}{mc_p} (\\frac{u(t)}{512} \\dot{Q} - (T - 30)Ah)";
     result += "\\end{matrix}"
     return result;
@@ -1013,14 +1014,15 @@ var getP2 = (level) => BigNumber.TWO.pow(level);
 var getC2 = (level) => BigNumber.E.pow(level);
 var getTdotExponent = (level) => 2 + level;
 let tauExponent = 0.2 / publicationExponent;
-var getPublicationMultiplier = (tau) => achievementMultiplierUpgrade.level >= 1 ? achievementMultiplier * tau.pow(tauExponent) / 2 : tau.pow(tauExponent) / 2;
-var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level >= 1 ? BigNumber.from(achievementMultiplier).toString(2) + "\\times \\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}" : "\\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}");
+var getPublicationMultiplier = (tau) => achievementMultiplierUpgrade.level >= 1 ? calculateAchievementMultiplier() * tau.pow(tauExponent) / 2 : tau.pow(tauExponent) / 2;
+var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level >= 1 ? BigNumber.from(calculateAchievementMultiplier()).toString(2) + "\\times \\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}" : "\\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}");
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
 var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(1 / publicationExponent), rho.symbol];
 var postPublish = () => {
   initialiseSystem();
   theory.invalidatePrimaryEquation();
+  theory.invalidateSecondaryEquation();
   theory.invalidateTertiaryEquation();
   publicationCount++;
 }
