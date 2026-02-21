@@ -214,6 +214,47 @@ var autoKick, unlockKi, unlockKd, c1Exponent,  unlockC2, improvePFormula;
 var init = () => {
   rho = theory.createCurrency();
   initialiseSystem();
+  /////////////////////
+  // Achievements
+
+  let achievement_category1 = theory.createAchievementCategory(0, "R");
+  let achievement_category2 = theory.createAchievementCategory(1, "Milestones");
+  let achievement_category3 = theory.createAchievementCategory(2, "Publications");
+  let achievement_category4 = theory.createAchievementCategory(3, "Tier 1 Challenges");
+  let achievement_category5 = theory.createAchievementCategory(4, "Tier 2 Challenges");
+  achievements = [
+
+    // Temperature
+    theory.createAchievement(0, achievement_category1, "R is for research", "Have r exceed 1e20.", () => r > BigNumber.from(1e20)),
+    theory.createAchievement(1, achievement_category1, "Bench-scale research", "Have r exceed 1e50", () => r > BigNumber.from(1e50)),
+    theory.createAchievement(2, achievement_category1, "Pilot-scale research", "Have r exceed 1e110", () => r > BigNumber.from(1e110)),
+
+    // Milestones
+    theory.createAchievement(3, achievement_category2, "Junior Engineer", "Reach 1e10τ.", () => theory.tau > BigNumber.from(1e10)),
+    theory.createAchievement(4, achievement_category2, "Senior Engineer", "Reach 1e25τ.", () => theory.tau > BigNumber.from(1e25)),
+    theory.createAchievement(5, achievement_category2, "Prinicipal Engineer", "Reach 1e50τ.", () => theory.tau > BigNumber.from(1e50)),
+    theory.createAchievement(6, achievement_category2, "Googol Engineer", "Reach 1e100τ.", () => theory.tau > BigNumber.from(1e100)),
+    theory.createAchievement(13, achievement_category2, "Reverse Engineer", "Reach 1e180τ.", () => theory.tau > BigNumber.from(1e200)),
+    theory.createAchievement(18, achievement_category2, "Spartan Engineer", "Reach 1e300τ.", () => theory.tau > BigNumber.from(1e300)),
+
+
+    // Publications
+    theory.createAchievement(7, achievement_category3, "Research Intern", "Publish 5 times.", () => publicationCount >= 5),
+    theory.createAchievement(8, achievement_category3, "R&D Engineer", "Publish 10 times.", () => publicationCount >= 10),
+    theory.createAchievement(9, achievement_category3, "\"That's Dr., not Mr.\"", "Publish 25 times.", () => publicationCount >= 25),
+
+    // Challenges
+
+    // 1e360τ 
+    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e500 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(500) && tDotExponent.level == 0)),
+    theory.createAchievement(11, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e160 while r is still 1.", () => (rho.value > BigNumber.from(1e160) && r == BigNumber.ONE)),
+    theory.createAchievement(14, achievement_category4, "Optimisation Challenge", "Have ρ exceed 1e130 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e130) && (c1.level + r1.level + r2.level + c2.level) <= 25) && tDotExponent.level == 0),
+
+    // 1e450τ
+    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e535 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(535) && tDotExponent.level == 0)),
+    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e210 while r is still 1.", () => (rho.value > BigNumber.from(1e210) && r == BigNumber.ONE)),
+    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e160 with only 1 upgrade purchased.", () => (rho.value > BigNumber.from(1e160) && (c1.level + r1.level + r2.level + c2.level + tDotExponent.level) <= 1)),
+  ];
 
   /////////////////////
   // Milestone Upgrades
@@ -424,59 +465,7 @@ var init = () => {
   
   systemDt = 0.1;
   setPoint = 30;
-
-  /////////////////////
-  // Achievements
-
-  let achievement_category1 = theory.createAchievementCategory(0, "R");
-  let achievement_category2 = theory.createAchievementCategory(1, "Milestones");
-  let achievement_category3 = theory.createAchievementCategory(2, "Publications");
-  let achievement_category4 = theory.createAchievementCategory(3, "Tier 1 Challenges");
-  let achievement_category5 = theory.createAchievementCategory(4, "Tier 2 Challenges");
-  achievements = [
-
-    // Temperature
-    theory.createAchievement(0, achievement_category1, "R is for research", "Have r exceed 1e20.", () => r > BigNumber.from(1e20)),
-    theory.createAchievement(1, achievement_category1, "Bench-scale research", "Have r exceed 1e50", () => r > BigNumber.from(1e50)),
-    theory.createAchievement(2, achievement_category1, "Pilot-scale research", "Have r exceed 1e110", () => r > BigNumber.from(1e110)),
-
-    // Milestones
-    theory.createAchievement(3, achievement_category2, "Junior Engineer", "Reach 1e10τ.", () => theory.tau > BigNumber.from(1e10)),
-    theory.createAchievement(4, achievement_category2, "Senior Engineer", "Reach 1e25τ.", () => theory.tau > BigNumber.from(1e25)),
-    theory.createAchievement(5, achievement_category2, "Prinicipal Engineer", "Reach 1e50τ.", () => theory.tau > BigNumber.from(1e50)),
-    theory.createAchievement(6, achievement_category2, "Googol Engineer", "Reach 1e100τ.", () => theory.tau > BigNumber.from(1e100)),
-    theory.createAchievement(13, achievement_category2, "Reverse Engineer", "Reach 1e180τ.", () => theory.tau > BigNumber.from(1e200)),
-    theory.createAchievement(18, achievement_category2, "Spartan Engineer", "Reach 1e300τ.", () => theory.tau > BigNumber.from(1e300)),
-
-
-    // Publications
-    theory.createAchievement(7, achievement_category3, "Research Intern", "Publish 5 times.", () => publicationCount >= 5),
-    theory.createAchievement(8, achievement_category3, "R&D Engineer", "Publish 10 times.", () => publicationCount >= 10),
-    theory.createAchievement(9, achievement_category3, "\"That's Dr., not Mr.\"", "Publish 25 times.", () => publicationCount >= 25),
-
-    // Challenges
-
-    // 1e360τ 
-    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e500 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(500) && tDotExponent.level == 0)),
-    theory.createAchievement(11, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e160 while r is still 1.", () => (rho.value > BigNumber.from(1e160) && r == BigNumber.ONE)),
-    theory.createAchievement(14, achievement_category4, "Optimisation Challenge", "Have ρ exceed 1e130 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e130) && (c1.level + r1.level + r2.level + c2.level) <= 25) && tDotExponent.level == 0),
-
-    // 1e450τ
-    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e535 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(535) && tDotExponent.level == 0)),
-    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e210 while r is still 1.", () => (rho.value > BigNumber.from(1e210) && r == BigNumber.ONE)),
-    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e160 with only 1 upgrade purchased.", () => (rho.value > BigNumber.from(1e160) && (c1.level + r1.level + r2.level + c2.level + tDotExponent.level) <= 1)),
-  ];
   updateAvailability();
-}
-
-var calculateAchievementMultiplier = () => {
-  let count = 0;
-  for (const achievement of achievements) {
-    if (achievement.isUnlocked) {
-      count++
-    }
-  }
-  return Math.pow(30, 1 / 18 * count);
 }
 
 ////////////////////////////
@@ -1019,6 +1008,15 @@ var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
 var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(1 / publicationExponent), rho.symbol];
+var calculateAchievementMultiplier = () => {
+  let count = 0;
+  for (const achievement of achievements) {
+    if (achievement.isUnlocked) {
+      count++
+    }
+  }
+  return Math.pow(30, 1 / 18 * count);
+}
 var postPublish = () => {
   initialiseSystem();
   theory.invalidatePrimaryEquation();
@@ -1026,5 +1024,6 @@ var postPublish = () => {
   theory.invalidateTertiaryEquation();
   publicationCount++;
 }
+
 init();
 
