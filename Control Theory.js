@@ -27,8 +27,8 @@ Q = 20 max heat duty in W \n \
   mass = 10 grams "
 
 var authors = "Gaunter#1337, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "2.1.1";
-var publicationExponent = 0.45;
+var version = "2.1.2";
+var publicationExponent = 0.4;
 var achievements;
 requiresGameVersion("1.4.29");
 
@@ -307,7 +307,7 @@ var init = () => {
     improvePFormula = theory.createMilestoneUpgrade(7, 2);
     improvePFormula.maxLevel = 2;
     improvePFormula.getDescription = (_) => `Improve $\\dot{P}$ formula`;
-    improvePFormula.getInfo = (_) => `$\\dot{P} = p_1 p_2 e^{${(-0.01 * Math.pow(0.8, improvePFormula.level)).toPrecision(2)} |T-${pTargetTemperature}|}$`;
+    improvePFormula.getInfo = (_) => `$\\dot{P} = p_1 p_2 e^{${(-3 * Math.pow(0.03, improvePFormula.level)).toPrecision(4)} |T-${pTargetTemperature}|}$`;
     improvePFormula.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); };
   }
 
@@ -427,7 +427,7 @@ var init = () => {
   {
     let getDesc = (level) => "c_2= e^{" + level + "}";
     let getInfo = (level) => "c_2=" + getC2(level).toString(2);
-    c2 = theory.createUpgrade(4, rho, new ExponentialCost(BigNumber.TEN.pow(400), Math.log2(10 ** 4.5)));
+    c2 = theory.createUpgrade(4, rho, new ExponentialCost(BigNumber.TEN.pow(420), Math.log2(10 ** 4.5)));
     c2.getDescription = (_) => Utils.getMath(getDesc(c2.level));
     c2.getInfo = (amount) => Utils.getMathTo(getInfo(c2.level), getInfo(c2.level + amount));
     c2.isAvailable = unlockC2.level > 0;
@@ -447,7 +447,7 @@ var init = () => {
   {
     let getDesc = (level) => "p_1=" + Utils.getStepwisePowerSum(level, 2, 10, 1).toString(0);
     let getInfo = (level) => "p_1=" + Utils.getStepwisePowerSum(level, 2, 10, 1).toString(0);
-    p1 = theory.createUpgrade(6, rho, new ExponentialCost(BigNumber.TEN.pow(750), Math.log2(16.61)));
+    p1 = theory.createUpgrade(6, rho, new ExponentialCost(BigNumber.TEN.pow(800), Math.log2(1e8)));
     p1.getDescription = (_) => Utils.getMath(getDesc(p1.level));
     p1.getInfo = (amount) => Utils.getMathTo(getInfo(p1.level), getInfo(p1.level + amount));
     p1.isAvailable = calculateAchievementMultiplier() >= 30;
@@ -455,9 +455,9 @@ var init = () => {
 
   // p2
   {
-    let getDesc = (level) => "p_2= 2^{" + level + "}";
+    let getDesc = (level) => "p_2= 3.1^{" + level + "}";
     let getInfo = (level) => "p_2=" + getP2(level).toString(0);
-    p2 = theory.createUpgrade(7, rho, new ExponentialCost(BigNumber.TEN.pow(900), Math.log2(1e15)));
+    p2 = theory.createUpgrade(7, rho, new ExponentialCost(BigNumber.TEN.pow(950), Math.log2(1e10)));
     p2.getDescription = (_) => Utils.getMath(getDesc(p2.level));
     p2.getInfo = (amount) => Utils.getMathTo(getInfo(p2.level), getInfo(p2.level + amount));
     p2.isAvailable = calculateAchievementMultiplier() >= 30;
@@ -908,7 +908,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     T = 30 + (suppliedHeat - exponentialTerm) / (h * area)
 
     let dp = 0;
-    if (achievementMultiplier >= 30) dp = getP1(p1.level) * getP2(p2.level) * BigNumber.E.pow(-0.01 * Math.pow(0.8, improvePFormula.level)) * Math.abs(T - pTargetTemperature);
+    if (achievementMultiplier >= 30) dp = getP1(p1.level) * getP2(p2.level) * BigNumber.E.pow(-3 * Math.pow(0.03, improvePFormula.level)) * Math.abs(T - pTargetTemperature);
     P += dp * dt;
     let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level)) / (1 + Math.log10(1 + Math.abs(error[0])));
     rEstimate = rEstimate * 0.95 + dr * 0.05;
@@ -950,7 +950,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     let P_string = p1.isAvailable? "P":""
     result += "\\dot{\\rho} = " + P_string + " r^{" + r_exp + "}\\sqrt{c_1^{" + c1_exp + "} "+ c2_string + "|\\dot{T}|^{" + getTdotExponent(tDotExponent.level) + "}}";
     result += "\\\\ \\dot{r} = \\frac{r_1^{" + r1_exp + "} r_2^{" + r2_exp + "}}{1+\\log_{10}(1 + \|e(t)\|)}"
-    if (calculateAchievementMultiplier() >= 30) result += `,\\ \\dot{P} = p_1 p_2 e^{${(-0.01 * Math.pow(0.8, improvePFormula.level)).toPrecision(2)} |T-${pTargetTemperature}|}`;
+    if (calculateAchievementMultiplier() >= 30) result += `,\\ \\dot{P} = p_1 p_2 e^{${(-3 * Math.pow(0.03, improvePFormula.level)).toPrecision(4)} |T-${pTargetTemperature}|}`;
     result += "\\\\ \\dot{T} = \\frac{1}{mc_p} (\\frac{u(t)}{512} \\dot{Q} - (T - 30)Ah)";
     result += "\\end{matrix}"
     return result;
@@ -999,7 +999,7 @@ var getC1 = (level) => BigNumber.from(C1Base + c1BaseUpgrade.level * 0.125).pow(
 var getR1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 0);
 var getR2 = (level) => BigNumber.TWO.pow(level);
 var getP1 = (level) => Utils.getStepwisePowerSum(level, 2, 10, 1);
-var getP2 = (level) => BigNumber.TWO.pow(level);
+var getP2 = (level) => BigNumber.from(3.1).pow(level);
 var getC2 = (level) => BigNumber.E.pow(level);
 var getTdotExponent = (level) => 2 + level;
 let tauExponent = 0.2 / publicationExponent;
