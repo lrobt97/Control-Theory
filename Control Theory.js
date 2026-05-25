@@ -27,7 +27,7 @@ Q = 20 max heat duty in W \n \
   mass = 10 grams "
 
 var authors = "Gaunter#1337, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "2.1.2";
+var version = "2.1.3";
 var publicationExponent = 0.4;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -908,7 +908,11 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     T = 30 + (suppliedHeat - exponentialTerm) / (h * area)
 
     let dp = 0;
+<<<<<<< HEAD
     if (achievementMultiplier >= 30) dp = getP1(p1.level) * getP2(p2.level) * BigNumber.E.pow(-0.2 * Math.pow(0.08, improvePFormula.level)) * Math.abs(T - pTargetTemperature);
+=======
+    if (achievementMultiplier >= 30) dp = getP1(p1.level) * getP2(p2.level) * BigNumber.E.pow(-3 * Math.pow(0.03, improvePFormula.level) * Math.abs(T - pTargetTemperature));
+>>>>>>> 9c3a52d6a0362eba2ed4323526c789d93669c5d2
     P += dp * dt;
     let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level)) / (1 + Math.log10(1 + Math.abs(error[0])));
     rEstimate = rEstimate * 0.95 + dr * 0.05;
