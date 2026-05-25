@@ -6,12 +6,13 @@ import { Utils } from "../api/Utils";
 import { TouchType } from "../api/UI/properties/TouchType";
 import { json } from "stream/consumers";
 import { ui } from "../api/UI"; // Ensure the UI module is imported
+import { get } from "http";
 var id = "temperature_control";
 var name = "Temperature Control";
 var description =
   "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n  \
   \n \
-You must regulate a 2×2×2 cm metal block using a variable output heater with a maximum power rating of 20 kW. \n \
+You must regulate a 2×2×2 cm metal block using a variable output heater with a maximum power rating of 20 W. \n \
 \n \
 The output of your PID system will be an integer between 0-512 (denoted by u(t) in the equation). This number will determine the output of the heater with 512 providing the maximum value \n \
 \n \
@@ -27,7 +28,7 @@ Q = 20 max heat duty in W \n \
   mass = 10 grams "
 
 var authors = "Gaunter#1337, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "2.1.3";
+var version = "2.2";
 var publicationExponent = 0.4;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -559,7 +560,7 @@ Now you just need to sit back and let the system run. \n \
 You are truly the master of Temperature Control. \n \
 The End \n \
 ? \n \
-(You have unlocked a new upgrade.) \
+You have unlocked a new variable, P. From now on, every publication will randomly generate a target temperature (as seen in the formula). The closer you manipulate T to this value, the faster P will grow. \
 "
 theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calculateAchievementMultiplier() >= 30);
 {
@@ -583,7 +584,9 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
   }
 
   var getInternalState = () => 
-    `${T.toString()}|${error[0].toString()}|${integral.toString()}|${kp.toString()}|${ki.toString()}|${kd.toString()}|${valve.toString()}|${publicationCount.toString()}|${r}|${autoKickerEnabled}|${cycleEstimate}|${setPoint}|${rEstimate}|${amplitude}|${frequency}|${maximumPublicationTdot}|${P}|${JSON.stringify(presets)}`;
+    `${T.toString()}|${error[0].toString()}|${integral.toString()}|${kp.toString()}|${ki.toString()}|${kd.toString()}|${valve.toString()}|` +
+    `${publicationCount.toString()}|${r}|${autoKickerEnabled}|${cycleEstimate}|${setPoint}|${rEstimate}|${amplitude}|${frequency}| `+
+    `${maximumPublicationTdot}|${P}|${JSON.stringify(presets)}|${pTargetTemperature.toString()}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -606,6 +609,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     if (values.length > 15) maximumPublicationTdot = parseBigNumber(values[15]);
     if (values.length > 16) P = parseBigNumber(values[16]);
     if (values.length > 17) presets = JSON.parse(values[17]);
+    if (values.length > 18) pTargetTemperature = parseFloat(values[18]);
   }
 
   var updatePidValues = () => {
@@ -908,11 +912,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     T = 30 + (suppliedHeat - exponentialTerm) / (h * area)
 
     let dp = 0;
-<<<<<<< HEAD
     if (achievementMultiplier >= 30) dp = getP1(p1.level) * getP2(p2.level) * BigNumber.E.pow(-0.2 * Math.pow(0.08, improvePFormula.level)) * Math.abs(T - pTargetTemperature);
-=======
-    if (achievementMultiplier >= 30) dp = getP1(p1.level) * getP2(p2.level) * BigNumber.E.pow(-3 * Math.pow(0.03, improvePFormula.level) * Math.abs(T - pTargetTemperature));
->>>>>>> 9c3a52d6a0362eba2ed4323526c789d93669c5d2
     P += dp * dt;
     let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level)) / (1 + Math.log10(1 + Math.abs(error[0])));
     rEstimate = rEstimate * 0.95 + dr * 0.05;
@@ -1021,11 +1021,38 @@ var calculateAchievementMultiplier = () => {
   }
   return Math.pow(30, 1 / 18 * count);
 }
+
+/**
+ * Simulates a 16-bit LFSR with 16 internal clock cycles per output.
+ * @param {number} seed - The input value 
+ * @returns {number} A random float between 0 and 1
+ */
+function lfsr16BitScrambled(seed) {
+    // Map input to 16-bit space (0 to 65535) and ensure non-zero
+    let state = (seed % 65536) || 1;
+
+    // Clock 16 times to completely roll over the 16-bit register
+    for (let i = 0; i < 16; i++) {
+        if (state & 1) {
+            // Shift right and XOR with 16-bit polynomial 0xB400
+            state = (state >> 1) ^ 0xB400;
+        } else {
+            state = state >> 1;
+        }
+    }
+
+    // Scale to a float between 0 and 1 (divide by max 16-bit value)
+    return state / 65535;
+}
+
 var postPublish = () => {
   initialiseSystem();
   theory.invalidatePrimaryEquation();
   theory.invalidateSecondaryEquation();
   theory.invalidateTertiaryEquation();
+  seed = Math.round(theory.tau.log10())
+  rng = lfsr16BitScrambled(seed);
+  pTargetTemperature = BigNumber.from(rng * (120 - 60) + 60).round();
   publicationCount++;
 }
 
