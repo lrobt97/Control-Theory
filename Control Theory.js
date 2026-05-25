@@ -912,7 +912,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     T = 30 + (suppliedHeat - exponentialTerm) / (h * area)
 
     let dp = 0;
-    if (achievementMultiplier >= 30) dp = getP1(p1.level) * getP2(p2.level) * BigNumber.E.pow(-0.2 * Math.pow(0.08, improvePFormula.level)) * Math.abs(T - pTargetTemperature);
+    if (achievementMultiplier >= 30) dp = getP1(p1.level) * getP2(p2.level) * BigNumber.E.pow(-0.2 * Math.pow(0.08, improvePFormula.level) * Math.abs(T - pTargetTemperature));
     P += dp * dt;
     let dr = getR1(r1.level).pow(getR1Exp(r1Exponent.level)) * getR2(r2.level).pow(getR2Exp(r2Exponent.level)) / (1 + Math.log10(1 + Math.abs(error[0])));
     rEstimate = rEstimate * 0.95 + dr * 0.05;
