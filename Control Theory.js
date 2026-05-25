@@ -68,6 +68,7 @@ ki = 0;
 kd = 0;
 amplitude = 125;
 autoKickerEnabled = false;
+automaticSetpointEnabled = false;
 frequency = 1.2;
 presets = [];
 C1Base = 2.75;
@@ -163,6 +164,7 @@ const displayPresetMenu = () => {
                   log("Frequency: " + presets[i].frequency);
                   frequency = presets[i].frequency;
                   autoKickerEnabled = presets[i].autoKickerEnabled;
+                  automaticSetpointEnabled = presets[i].automaticSetpointEnabled;
                 }
               },
               row: 0,
@@ -207,7 +209,7 @@ const displayPresetMenu = () => {
 var c1, r1, r2, c2, kickT, tDotExponent, presetMenu, unlockPresetMenu;
 
 // Permanent upgrades
-var changePidValues, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade, achievementMultiplierUpgrade;
+var changePidValues, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade, achievementMultiplierUpgrade, automaticSetpointUpgrade;
 
 // Milestones
 var autoKick, unlockKi, unlockKd, c1Exponent,  unlockC2, improvePFormula;
@@ -308,7 +310,7 @@ var init = () => {
     improvePFormula = theory.createMilestoneUpgrade(7, 2);
     improvePFormula.maxLevel = 2;
     improvePFormula.getDescription = (_) => `Improve $\\dot{P}$ formula`;
-    improvePFormula.getInfo = (_) => `$\\dot{P} = p_1 p_2 e^{${(-3 * Math.pow(0.03, improvePFormula.level)).toPrecision(4)} |T-${pTargetTemperature}|}$`;
+    improvePFormula.getInfo = (_) => `$\\dot{P} = p_1 p_2 e^{${(-0.2 * Math.pow(0.08, improvePFormula.level + 1)).toPrecision(4)} |T-${pTargetTemperature}|}$`;
     improvePFormula.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); };
   }
 
@@ -387,6 +389,15 @@ var init = () => {
       presetMenu.isAvailable = unlockPresetMenu.level > 0;
      }
   }
+
+  {
+    automaticSetpointUpgrade = theory.createPermanentUpgrade(6, rho, new CustomCost(_ => BigNumber.TEN.pow(1000)));
+    automaticSetpointUpgrade.maxLevel = 1;
+    automaticSetpointUpgrade.getDescription = (_) => "Automatic set point";
+    automaticSetpointUpgrade.getInfo = (_) => "Automatically sets $T_s$ to the target temperature for P.";
+    automaticSetpointUpgrade.isAvailable = calculateAchievementMultiplier() >= 30;
+  }
+
   /////////////////////
   // Upgrades
 
@@ -560,7 +571,8 @@ Now you just need to sit back and let the system run. \n \
 You are truly the master of Temperature Control. \n \
 The End \n \
 ? \n \
-You have unlocked a new variable, P. From now on, every publication will randomly generate a target temperature (as seen in the formula). The closer you manipulate T to this value, the faster P will grow. \
+You have unlocked a new variable, P. From now on, every publication will randomly generate a target temperature (as seen in the formula). The closer you manipulate T to this value, the faster P will grow. \n \
+A new permament upgrade and milestone are now available. \
 "
 theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calculateAchievementMultiplier() >= 30);
 {
@@ -581,12 +593,13 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     improvePFormula.isAvailable = calculateAchievementMultiplier() >= 30;
     unlockPresetMenu.isAvailable = changePidValues.level > 0;
     presetMenu.isAvailable = unlockPresetMenu.level > 0;
+    automaticSetpointUpgrade.isAvailable = calculateAchievementMultiplier() >= 30;
   }
 
   var getInternalState = () => 
     `${T.toString()}|${error[0].toString()}|${integral.toString()}|${kp.toString()}|${ki.toString()}|${kd.toString()}|${valve.toString()}|` +
     `${publicationCount.toString()}|${r}|${autoKickerEnabled}|${cycleEstimate}|${setPoint}|${rEstimate}|${amplitude}|${frequency}| `+
-    `${maximumPublicationTdot}|${P}|${JSON.stringify(presets)}|${pTargetTemperature.toString()}`;
+    `${maximumPublicationTdot}|${P}|${JSON.stringify(presets)}|${pTargetTemperature.toString()}|${automaticSetpointEnabled.toString()}`;
 
   var setInternalState = (state) => {
     debug = state;
@@ -610,6 +623,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     if (values.length > 16) P = parseBigNumber(values[16]);
     if (values.length > 17) presets = JSON.parse(values[17]);
     if (values.length > 18) pTargetTemperature = parseFloat(values[18]);
+    if (values.length > 19) automaticSetpointEnabled = values[19] == "true";
   }
 
   var updatePidValues = () => {
@@ -788,8 +802,10 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     let tiText = "{K}_{i} = ";
     let tdText = "{K}_{d} = ";
     let setPointText = "{T}_{s} = "
+    let autoSetpointText = "Enable Automatic Set Point: ";
     let kpTextLabel, kiTextLabel, kdTextLabel, setPointTextLabel;
     let kpSlider, kiSlider, kdSlider, setPointSlider;
+    let autoSetpointSwitch, autoSetpointLabel;
     let menu = ui.createPopup({
       title: "Configure PID",
       content: 
@@ -851,9 +867,29 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
             setPointTextLabel = ui.createLatexLabel({ text: Utils.getMath(setPointText + setPoint.toPrecision(3)) }),
             setPointSlider = ui.createSlider({
               onValueChanged: () => {
+                newSetPoint = automaticSetpointEnabled ? pTargetTemperature : setPointSlider.value;
+                setPointSlider.value = newSetPoint;
                 setPointTextLabel.text = Utils.getMath(setPointText + setPointSlider.value.toPrecision(3));
-                newSetPoint = setPointSlider.value;
               },
+            }),
+            autoSetpointLabel = ui.createLabel({ 
+              text: autoSetpointText,
+              horizontalTextAlignment: TextAlignment.START,
+              verticalTextAlignment: TextAlignment.CENTER,
+              //isVisible: () => automaticSetpointUpgrade.level > 0,
+            }),
+            autoSetpointSwitch = ui.createSwitch({
+              isToggled: () => automaticSetpointEnabled,
+              onTouched: (e) => { 
+                if (e.type == TouchType.PRESSED) {
+                  automaticSetpointEnabled = !automaticSetpointEnabled
+                  if (automaticSetpointEnabled) {
+                    newSetPoint = pTargetTemperature;
+                    setPointSlider.value = newSetPoint;
+                    setPointTextLabel.text = Utils.getMath(setPointText + setPointSlider.value.toPrecision(3));
+                  }
+                }},
+              //isVisible: () => automaticSetpointUpgrade.level > 0,
             }),
             ui.createButton({ text: "Update", onClicked: updatePidValues })
           ]
@@ -879,6 +915,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
   };
 
   var tick = (elapsedTime, multiplier) => {
+    if (automaticSetpointEnabled) setPoint = pTargetTemperature;
     let dt = BigNumber.from(elapsedTime * multiplier);
     let bonus = theory.publicationMultiplier;
     achievementMultiplier = calculateAchievementMultiplier();
