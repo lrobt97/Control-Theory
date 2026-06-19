@@ -622,8 +622,8 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     if (values.length > 15) maximumPublicationTdot = parseBigNumber(values[15]);
     if (values.length > 16) P = parseBigNumber(values[16]);
     if (values.length > 17) presets = JSON.parse(values[17]);
-    if (values.length > 18) pTargetTemperature = parseFloat(values[18]);
-    if (values.length > 19) automaticSetpointEnabled = values[19] == "true";
+    pTargetTemperature = (values.length > 18) ? parseFloat(values[18]) : 100;
+    automaticSetpointEnabled = (values.length > 19) ? values[19] == "true" : false
   }
 
   var updatePidValues = () => {
