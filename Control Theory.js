@@ -1089,7 +1089,7 @@ var postPublish = () => {
   theory.invalidateTertiaryEquation();
   seed = Math.round(theory.tau.log10())
   rng = lfsr16BitScrambled(seed);
-  pTargetTemperature = BigNumber.from(rng * (120 - 60) + 60).round();
+  pTargetTemperature = Math.round(rng * (120 - 60) + 60);
   publicationCount++;
 }
 
