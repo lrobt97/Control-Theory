@@ -60,7 +60,7 @@ var getImageSize = (width) => {
 }
 
 // System variables
-var rhoEstimate, Tc, Th, P, r, T, output, kp, kd, ki, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
+var rhoEstimate, Tc, Th, P, r, T, output, kp, kd, ki, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicat[...]
 kp = 5;
 cycleEstimate = BigNumber.ZERO;
 rEstimate = BigNumber.ZERO;
@@ -249,14 +249,14 @@ var init = () => {
     // Challenges
 
     // 1e360τ 
-    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e500 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(500) && tDotExponent.level == 0)),
+    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e500 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(500) && tDotExponent[...]
     theory.createAchievement(11, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e160 while r is still 1.", () => (rho.value > BigNumber.from(1e160) && r == BigNumber.ONE)),
-    theory.createAchievement(14, achievement_category4, "Optimisation Challenge", "Have ρ exceed 1e130 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e130) && (c1.level + r1.level + r2.level + c2.level) <= 25) && tDotExponent.level == 0),
+    theory.createAchievement(14, achievement_category4, "Optimisation Challenge", "Have ρ exceed 1e130 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.[...]
 
     // 1e450τ
-    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e535 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(535) && tDotExponent.level == 0)),
-    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e210 while r is still 1.", () => (rho.value > BigNumber.from(1e210) && r == BigNumber.ONE)),
-    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e160 with only 1 upgrade purchased.", () => (rho.value > BigNumber.from(1e160) && (c1.level + r1.level + r2.level + c2.level + tDotExponent.level) <= 1)),
+    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e535 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(535) && [...]
+    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e210 while r is still 1.", () => (rho.value > BigNumber.from(1e210) && r == BigNumber.ON[...]
+    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e160 with only 1 upgrade purchased.", () => (rho.value > BigNumber.from(1e160) && (c1.level + [...]
   ];
 
   /////////////////////
@@ -571,7 +571,7 @@ Now you just need to sit back and let the system run. \n \
 You are truly the master of Temperature Control. \n \
 The End \n \
 ? \n \
-You have unlocked a new variable, P. From now on, every publication will randomly generate a target temperature (as seen in the formula). The closer you manipulate T to this value, the faster P will grow. \n \
+You have unlocked a new variable, P. From now on, every publication will randomly generate a target temperature (as seen in the formula). The closer you manipulate T to this value, the faster P w[...]
 A new permament upgrade and milestone are now available. \
 "
 theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calculateAchievementMultiplier() >= 30);
@@ -604,26 +604,26 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
   var setInternalState = (state) => {
     debug = state;
     let values = state.split("|");
-    if (values.length > 0) T = parseFloat(values[0]);
-    if (values.length > 1) error[0] = parseFloat(values[1]);
-    if (values.length > 2) integral = parseFloat(values[2]);
-    if (values.length > 3) kp = parseFloat(values[3]);
-    if (values.length > 4) ki = parseFloat(values[4]);
-    if (values.length > 5) kd = parseFloat(values[5]);
-    if (values.length > 6) valve = parseFloat(values[6]);
-    if (values.length > 7) publicationCount = parseFloat(values[7]);
-    if (values.length > 8) r = parseBigNumber(values[8]);
-    if (values.length > 9) autoKickerEnabled = values[9] == "true";
-    if (values.length > 10) cycleEstimate = parseBigNumber(values[10]);
-    if (values.length > 11) setPoint = parseFloat(values[11]);
-    if (values.length > 12) rEstimate = parseBigNumber(values[12]);
-    if (values.length > 13) amplitude = parseFloat(values[13]);
-    if (values.length > 14) frequency = parseFloat(values[14]);
-    if (values.length > 15) maximumPublicationTdot = parseBigNumber(values[15]);
-    if (values.length > 16) P = parseBigNumber(values[16]);
-    if (values.length > 17) presets = JSON.parse(values[17]);
-    pTargetTemperature = (values.length > 18) ? parseFloat(values[18]) : 100;
-    automaticSetpointEnabled = (values.length > 19) ? values[19] == "true" : false
+    T = values.length > 0 ? parseFloat(values[0]) : BigNumber.from(30);
+    error[0] = values.length > 1 ? parseFloat(values[1]) : 0;
+    integral = values.length > 2 ? parseFloat(values[2]) : 0;
+    kp = values.length > 3 ? parseFloat(values[3]) : 5;
+    ki = values.length > 4 ? parseFloat(values[4]) : 0;
+    kd = values.length > 5 ? parseFloat(values[5]) : 0;
+    valve = values.length > 6 ? parseFloat(values[6]) : BigNumber.ZERO;
+    publicationCount = values.length > 7 ? parseFloat(values[7]) : 0;
+    r = values.length > 8 ? parseBigNumber(values[8]) : BigNumber.from(1);
+    autoKickerEnabled = values.length > 9 ? values[9] == "true" : false;
+    cycleEstimate = values.length > 10 ? parseBigNumber(values[10]) : BigNumber.ZERO;
+    setPoint = values.length > 11 ? parseFloat(values[11]) : 30;
+    rEstimate = values.length > 12 ? parseBigNumber(values[12]) : BigNumber.ZERO;
+    amplitude = values.length > 13 ? parseFloat(values[13]) : 125;
+    frequency = values.length > 14 ? parseFloat(values[14]) : 1.2;
+    maximumPublicationTdot = values.length > 15 ? parseBigNumber(values[15]) : BigNumber.ZERO;
+    P = values.length > 16 ? parseBigNumber(values[16]) : BigNumber.ONE;
+    presets = values.length > 17 ? JSON.parse(values[17]) : presets;
+    pTargetTemperature = values.length > 18 ? parseFloat(values[18]) : 100;
+    automaticSetpointEnabled = values.length > 19 ? values[19] == "true" : false;
   }
 
   var updatePidValues = () => {
@@ -776,14 +776,14 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
                 text: "\
               This menu is used to tweak the parameters of the PID controller - a mechanism that can automatically adjust the temperature to a given value (known as the setpoint).\n \
               \n \
-              This guide serves as an explanation for how the tuning parameters affect the main system. Each cycle, the controller measures the error term, e(t), and uses it in the below equation. Because this measurement only happens in discrete time intervals, the measurements are stored in the sequence e_n. \n \
-              The output of the equation is converted into an integer between 0 and 512. This means any negative values are capped at 0 and the upper limit is capped at 512. This output is used within the main equation of the system.\n \
+              This guide serves as an explanation for how the tuning parameters affect the main system. Each cycle, the controller measures the error term, e(t), and uses it in the below equation[...]
+              The output of the equation is converted into an integer between 0 and 512. This means any negative values are capped at 0 and the upper limit is capped at 512. This output is used w[...]
               \n \
-              K_p: This refers to the proportional gain. The output of this term scales in proportion to the measured error. Only using this term results in permament offset, which causes the controller to stop even though it hasn't hit the setpoint. If this is set too high, the controller becomes more aggresive which means it overreacts to any small deviation.\n  \
+              K_p: This refers to the proportional gain. The output of this term scales in proportion to the measured error. Only using this term results in permament offset, which causes the con[...]
               \n \
-              K_i: This refers to the integral gain. This term allows the controller to calculate the sum of the previous errors and adjust the output to attempt to minimise them. This operation prevents the offset mentioned above, however setting the value too high can cause oscillations due to windup.\n \
+              K_i: This refers to the integral gain. This term allows the controller to calculate the sum of the previous errors and adjust the output to attempt to minimise them. This operation [...]
               \n \
-              K_d: This refers to the differential gain. This term measures the rate of change in the error and attempts to adjust the output to minimise future errors. This can prevent overshoot, which allows T to settle at the setpoint without moving too far beyond. However, setting this term too high can lead to oscillations and instablity.\n \
+              K_d: This refers to the differential gain. This term measures the rate of change in the error and attempts to adjust the output to minimise future errors. This can prevent overshoot[...]
               \n \
               T_s: This refers to the setpoint. The controller will try to manipulate the temperature towards this value. \
                 "
@@ -1045,7 +1045,7 @@ var getC2 = (level) => BigNumber.E.pow(level);
 var getTdotExponent = (level) => 2 + level;
 let tauExponent = 0.2 / publicationExponent;
 var getPublicationMultiplier = (tau) => achievementMultiplierUpgrade.level >= 1 ? calculateAchievementMultiplier() * tau.pow(tauExponent) / 2 : tau.pow(tauExponent) / 2;
-var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level >= 1 ? BigNumber.from(calculateAchievementMultiplier()).toString(2) + "\\times \\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}" : "\\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}");
+var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level >= 1 ? BigNumber.from(calculateAchievementMultiplier()).toString(2) + "\\times \\frac{" + symbol + "^{"+ tau[...]
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
 var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(1 / publicationExponent), rho.symbol];
@@ -1094,4 +1094,3 @@ var postPublish = () => {
 }
 
 init();
-
