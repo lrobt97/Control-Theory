@@ -60,7 +60,7 @@ var getImageSize = (width) => {
 }
 
 // System variables
-var rhoEstimate, Tc, Th, P, r, T, output, kp, kd, ki, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicat[...]
+var rhoEstimate, Tc, Th, P, r, T, output, kp, kd, ki, setPoint, output, error, integral, systemDt, valve, timer, amplitude, frequency, autoKickerEnabled, baseTolerance, achievementMultiplier, publicationCount, cycleEstimate;
 kp = 5;
 cycleEstimate = BigNumber.ZERO;
 rEstimate = BigNumber.ZERO;
@@ -102,19 +102,18 @@ var initialiseSystem = () => {
   baseTolerance = 5;
   achievementMultiplier = 1;
   maximumPublicationTdot = BigNumber.ZERO;
-  if (presets.length == 0) {
-    presets = Array.from({ length: 3 }, (_, i) => ({
-      T: 5,
-      kp: 0,
-      ki: 0,
-      kd: 0,
-      setPoint: 30,
-      autoKickerEnabled: false,
-      amplitude: 125,
-      frequency: 1.2,
-      name: "Preset " + (i + 1),
-    }));
-  }
+  defaultPresets = Array.from({ length: 3 }, (_, i) => ({
+    T: 5,
+    kp: 0,
+    ki: 0,
+    kd: 0,
+    setPoint: 30,
+    autoKickerEnabled: false,
+    amplitude: 125,
+    frequency: 1.2,
+    name: "Preset " + (i + 1),
+  }));
+  if (presets.length === 0) presets = [...defaultPresets];
 }
 
 const displayPresetMenu = () => {
@@ -249,15 +248,15 @@ var init = () => {
     // Challenges
 
     // 1e360τ 
-    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e500 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(500) && tDotExponent[...]
+    theory.createAchievement(10, achievement_category4, "Don't need it.", "Have ρ exceed 1e500 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(500) && tDotExponent.level == 0)),
     theory.createAchievement(11, achievement_category4, "What does 'r' do again?", "Have ρ exceed 1e160 while r is still 1.", () => (rho.value > BigNumber.from(1e160) && r == BigNumber.ONE)),
-    theory.createAchievement(14, achievement_category4, "Optimisation Challenge", "Have ρ exceed 1e130 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.[...]
+    theory.createAchievement(14, achievement_category4, "Optimisation Challenge", "Have ρ exceed 1e130 within 25 upgrade purchases and no T dot exponent upgrades.", () => (rho.value > BigNumber.from(1e130) && (c1.level + r1.level + r2.level + c2.level) <= 25) && tDotExponent.level == 0),
 
     // 1e450τ
-    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e535 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(535) && [...]
-    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e210 while r is still 1.", () => (rho.value > BigNumber.from(1e210) && r == BigNumber.ON[...]
-    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e160 with only 1 upgrade purchased.", () => (rho.value > BigNumber.from(1e160) && (c1.level + [...]
-  ];
+    theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e535 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(535) && tDotExponent.level == 0)),
+    theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e210 while r is still 1.", () => (rho.value > BigNumber.from(1e210) && r == BigNumber.ONE)),
+    theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e160 with only 1 upgrade purchased.", () => (rho.value > BigNumber.from(1e160) && (c1.level + r1.level + r2.level + c2.level + tDotExponent.level) <= 1)),
+];
 
   /////////////////////
   // Milestone Upgrades
@@ -571,11 +570,9 @@ Now you just need to sit back and let the system run. \n \
 You are truly the master of Temperature Control. \n \
 The End \n \
 ? \n \
-You have unlocked a new variable, P. From now on, every publication will randomly generate a target temperature (as seen in the formula). The closer you manipulate T to this value, the faster P w[...]
-A new permament upgrade and milestone are now available. \
+(You have unlocked a new upgrade.) \
 "
 theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calculateAchievementMultiplier() >= 30);
-{
   // Internal
   var updateAvailability = () => {
     kickT.isAvailable = autoKick.level == 0;
@@ -596,34 +593,78 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     automaticSetpointUpgrade.isAvailable = calculateAchievementMultiplier() >= 30;
   }
 
-  var getInternalState = () => 
-    `${T.toString()}|${error[0].toString()}|${integral.toString()}|${kp.toString()}|${ki.toString()}|${kd.toString()}|${valve.toString()}|` +
-    `${publicationCount.toString()}|${r}|${autoKickerEnabled}|${cycleEstimate}|${setPoint}|${rEstimate}|${amplitude}|${frequency}| `+
-    `${maximumPublicationTdot}|${P}|${JSON.stringify(presets)}|${pTargetTemperature.toString()}|${automaticSetpointEnabled.toString()}`;
+  var getInternalState = () => {
+    let state = {
+      T: T.toString(),
+      error: error[0].toString(),
+      integral: integral.toString(),
+      kp: kp.toString(),
+      ki: ki.toString(),
+      kd: kd.toString(),
+      valve: valve.toString(),
+      publicationCount: publicationCount.toString(),
+      r: r.toString(),
+      autoKickerEnabled: autoKickerEnabled,
+      cycleEstimate: cycleEstimate.toString(),
+      setPoint: setPoint.toString(),
+      rEstimate: rEstimate.toString(),
+      amplitude: amplitude.toString(),
+      frequency: frequency.toString(),
+      maximumPublicationTdot: maximumPublicationTdot.toString(),
+      P: P.toString(),
+      presets: presets,
+      pTargetTemperature: pTargetTemperature.toString(),
+      automaticSetpointEnabled: automaticSetpointEnabled
+    };
+
+    return JSON.stringify(state);
+  }
 
   var setInternalState = (state) => {
-    debug = state;
-    let values = state.split("|");
-    T = values.length > 0 ? parseFloat(values[0]) : BigNumber.from(30);
-    error[0] = values.length > 1 ? parseFloat(values[1]) : 0;
-    integral = values.length > 2 ? parseFloat(values[2]) : 0;
-    kp = values.length > 3 ? parseFloat(values[3]) : 5;
-    ki = values.length > 4 ? parseFloat(values[4]) : 0;
-    kd = values.length > 5 ? parseFloat(values[5]) : 0;
-    valve = values.length > 6 ? parseFloat(values[6]) : BigNumber.ZERO;
-    publicationCount = values.length > 7 ? parseFloat(values[7]) : 0;
-    r = values.length > 8 ? parseBigNumber(values[8]) : BigNumber.from(1);
-    autoKickerEnabled = values.length > 9 ? values[9] == "true" : false;
-    cycleEstimate = values.length > 10 ? parseBigNumber(values[10]) : BigNumber.ZERO;
-    setPoint = values.length > 11 ? parseFloat(values[11]) : 30;
-    rEstimate = values.length > 12 ? parseBigNumber(values[12]) : BigNumber.ZERO;
-    amplitude = values.length > 13 ? parseFloat(values[13]) : 125;
-    frequency = values.length > 14 ? parseFloat(values[14]) : 1.2;
-    maximumPublicationTdot = values.length > 15 ? parseBigNumber(values[15]) : BigNumber.ZERO;
-    P = values.length > 16 ? parseBigNumber(values[16]) : BigNumber.ONE;
-    presets = values.length > 17 ? JSON.parse(values[17]) : presets;
-    pTargetTemperature = values.length > 18 ? parseFloat(values[18]) : 100;
-    automaticSetpointEnabled = values.length > 19 ? values[19] == "true" : false;
+    try {
+    stateData = JSON.parse(state);
+    T = stateData.T !== undefined ? BigNumber.from(stateData.T) : BigNumber.from(30);
+    error[0] = stateData.error !== undefined ? parseFloat(stateData.error) : 0;
+    integral = stateData.integral !== undefined ? parseFloat(stateData.integral) : 0;
+    kp = stateData.kp !== undefined ? parseFloat(stateData.kp) : 5;
+    ki = stateData.ki !== undefined ? parseFloat(stateData.ki) : 0;
+    kd = stateData.kd !== undefined ? parseFloat(stateData.kd) : 0;
+    valve = stateData.valve !== undefined ? parseFloat(stateData.valve) : 0;
+    publicationCount = stateData.publicationCount !== undefined ? parseInt(stateData.publicationCount) : 0;
+    r = stateData.r !== undefined ? BigNumber.from(stateData.r) : BigNumber.ZERO;
+    autoKickerEnabled = stateData.autoKickerEnabled !== undefined ? stateData.autoKickerEnabled : false;
+    cycleEstimate = stateData.cycleEstimate !== undefined ? BigNumber.from(stateData.cycleEstimate) : BigNumber.ZERO;
+    setPoint = stateData.setPoint !== undefined ? parseFloat(stateData.setPoint) : 25;
+    rEstimate = stateData.rEstimate !== undefined ? BigNumber.from(stateData.rEstimate) : BigNumber.ZERO;
+    amplitude = stateData.amplitude !== undefined ? parseFloat(stateData.amplitude) : 125;
+    frequency = stateData.frequency !== undefined ? parseFloat(stateData.frequency) : 1;
+    maximumPublicationTdot = stateData.maximumPublicationTdot !== undefined ? BigNumber.from(stateData.maximumPublicationTdot) : BigNumber.ZERO;
+    P = stateData.P !== undefined ? BigNumber.from(stateData.P) : BigNumber.ZERO;
+    presets = stateData.presets !== undefined ? [...stateData.presets] : [...defaultPresets];
+    pTargetTemperature = stateData.pTargetTemperature !== undefined ? parseFloat(stateData.pTargetTemperature) : 100;
+    automaticSetpointEnabled = stateData.automaticSetpointEnabled !== undefined ? stateData.automaticSetpointEnabled : false;
+    } catch (e) {
+      T = BigNumber.from(30);
+      error[0] = 0;
+      integral = 0;
+      kp = 5;
+      ki = 0;
+      kd = 0;
+      valve = 0;
+      publicationCount = 0;
+      r = BigNumber.ZERO;
+      autoKickerEnabled = false;
+      cycleEstimate = BigNumber.ZERO;
+      setPoint = 25;
+      rEstimate = BigNumber.ZERO;
+      amplitude = 125;
+      frequency = 1;
+      maximumPublicationTdot = BigNumber.ZERO;
+      P = BigNumber.ZERO;
+      presets = [...defaultPresets];
+      pTargetTemperature =100;
+      automaticSetpointEnabled = false;
+    }
   }
 
   var updatePidValues = () => {
@@ -764,6 +805,27 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     return menu;
   }
   const viewPIDInfoMenu = () => {
+    const systemConstantMenu = () => {
+      return ui.createPopup({
+        title: "System Constants",
+        content: 
+        ui.createStackLayout({
+          children: [
+            ui.createLatexLabel({
+              horizontalTextAlignment: TextAlignment.START,
+              text: Utils.getMath("\
+              Q = 20 \\text{ W } \\text{max heating power} \\\\ \
+              h = 5 \\text{ W } \\text{m}^{-2} \\text{ K}^{-1} \\text{ thermal conductivity for Al} \\\\ \
+              C_p = 0.89 \\text{ J } \\text{g}^{-1} \\text{ K}^{-1} \\text{ specific heat capacity of Al} \\\\ \
+              A = 0.024 \\text{ m}^2 \\text{ surface area of the system} \\\\ \
+              m = 10 \\text{ g} \\text{ mass of the system} \\\\ \
+              ")
+            }),
+          ]
+        })
+      })
+    }
+
     let menu = ui.createPopup({
       title: "PID Menu Guide",
       content:
@@ -771,22 +833,38 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
           content:
           ui.createStackLayout({
             children: [
-              ui.createLabel({
+              ui.createLatexLabel({
                 horizontalTextAlignment: TextAlignment.START,
-                text: "\
-              This menu is used to tweak the parameters of the PID controller - a mechanism that can automatically adjust the temperature to a given value (known as the setpoint).\n \
-              \n \
-              This guide serves as an explanation for how the tuning parameters affect the main system. Each cycle, the controller measures the error term, e(t), and uses it in the below equation[...]
-              The output of the equation is converted into an integer between 0 and 512. This means any negative values are capped at 0 and the upper limit is capped at 512. This output is used w[...]
-              \n \
-              K_p: This refers to the proportional gain. The output of this term scales in proportion to the measured error. Only using this term results in permament offset, which causes the con[...]
-              \n \
-              K_i: This refers to the integral gain. This term allows the controller to calculate the sum of the previous errors and adjust the output to attempt to minimise them. This operation [...]
-              \n \
-              K_d: This refers to the differential gain. This term measures the rate of change in the error and attempts to adjust the output to minimise future errors. This can prevent overshoot[...]
-              \n \
-              T_s: This refers to the setpoint. The controller will try to manipulate the temperature towards this value. \
-                "
+                text: Utils.getMath("\
+                T_{s}:= \\text{ the set point temperature, \\\\ \
+                the system will try to stabilise at this value} \\\\ \
+                \\\\ \
+                T:=  \\text{ the current temperature} \\\\ \
+                \\\\ \
+                e_n:=  \\text{ the current error} \\\\ \
+                \\\\ \
+                e_i:=  \\text{ the error at time step } i \\\\ \
+                \\\\ \
+                u(t):=  \\text{ the control signal, ranges from 0-512} \\\\ \
+                \\\\ \
+                K_p:=  \\text{ the proportional gain, \\\\ \
+                increases the control signal in proportion \\\\ \
+                to the error} \\\\ \
+                \\\\ \
+                K_i:=  \\text{ the integral gain, \\\\ \
+                increases the control signal in proportion \\\\  \
+                to the accumulated error} \\\\ \
+                \\\\ \
+                K_d:=  \\text{ the derivative gain, \\\\ \
+                increases the control signal in proportion \\\\ \
+                to the rate of change of the error}")
+              }),
+              ui.createButton({
+                text: "System Constants",
+                onClicked: () => {
+                  let systemConstantsMenu = systemConstantMenu();
+                  systemConstantsMenu.show();
+                }
               })
             ]
           })
@@ -797,6 +875,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
 
     return menu;
   }
+
   const createPidMenu = () => {
     let kpText = "{K}_{p} = ";
     let tiText = "{K}_{i} = ";
@@ -844,13 +923,14 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
             }),
             kiTextLabel = ui.createLatexLabel({ text: Utils.getMath(tiText + ki.toString()) }),
             kiSlider = ui.createSlider({
-              value: ki,
+              value: ki > 0 ? Math.log10(ki) : -2,
               isVisible: () => unlockKi.level > 0,
-              minimum: 0,
-              maximum: 50,
+              minimum: -5,
+              maximum: 2,
               onValueChanged: () => {
-                kiTextLabel.text = Utils.getMath(tiText + kiSlider.value.toPrecision(2).toString());
-                newKi = kiSlider.value;
+                const kiValue = Math.pow(10, kiSlider.value);
+                kiTextLabel.text = Utils.getMath(tiText + kiValue.toPrecision(2).toString());
+                newKi = kiValue;
               },
             }),
             kdTextLabel = ui.createLatexLabel({ text: Utils.getMath(tdText + kd.toString()) }),
@@ -885,6 +965,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
                   automaticSetpointEnabled = !automaticSetpointEnabled
                   if (automaticSetpointEnabled) {
                     newSetPoint = pTargetTemperature;
+                    log("Automatic set point enabled. Set point is now " + newSetPoint);
                     setPointSlider.value = newSetPoint;
                     setPointTextLabel.text = Utils.getMath(setPointText + setPointSlider.value.toPrecision(3));
                   }
@@ -972,7 +1053,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     theory.invalidateSecondaryEquation();
     theory.invalidateTertiaryEquation();
   }
-}
+
 
 
 {
@@ -1045,7 +1126,7 @@ var getC2 = (level) => BigNumber.E.pow(level);
 var getTdotExponent = (level) => 2 + level;
 let tauExponent = 0.2 / publicationExponent;
 var getPublicationMultiplier = (tau) => achievementMultiplierUpgrade.level >= 1 ? calculateAchievementMultiplier() * tau.pow(tauExponent) / 2 : tau.pow(tauExponent) / 2;
-var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level >= 1 ? BigNumber.from(calculateAchievementMultiplier()).toString(2) + "\\times \\frac{" + symbol + "^{"+ tau[...]
+var getPublicationMultiplierFormula = (symbol) => (achievementMultiplierUpgrade.level >= 1 ? BigNumber.from(calculateAchievementMultiplier()).toString(2) + "\\times \\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}" : "\\frac{" + symbol + "^{"+ tauExponent.toPrecision(3) +"}}{2}");
 var get2DGraphValue = () => (BigNumber.ONE + T).toNumber();
 var getTau = () => rho.value.pow(publicationExponent);
 var getCurrencyFromTau = (tau) => [tau.max(BigNumber.ONE).pow(1 / publicationExponent), rho.symbol];
@@ -1089,7 +1170,7 @@ var postPublish = () => {
   theory.invalidateTertiaryEquation();
   seed = Math.round(theory.tau.log10())
   rng = lfsr16BitScrambled(seed);
-  pTargetTemperature = Math.round(rng * (120 - 60) + 60);
+  pTargetTemperature = parseFloat(Math.round(rng * (120 - 60) + 60));
   publicationCount++;
 }
 
