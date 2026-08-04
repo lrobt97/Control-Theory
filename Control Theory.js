@@ -956,7 +956,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
               text: autoSetpointText,
               horizontalTextAlignment: TextAlignment.START,
               verticalTextAlignment: TextAlignment.CENTER,
-              //isVisible: () => automaticSetpointUpgrade.level > 0,
+              isVisible: () => automaticSetpointUpgrade.level > 0,
             }),
             autoSetpointSwitch = ui.createSwitch({
               isToggled: () => automaticSetpointEnabled,
@@ -970,7 +970,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
                     setPointTextLabel.text = Utils.getMath(setPointText + setPointSlider.value.toPrecision(3));
                   }
                 }},
-              //isVisible: () => automaticSetpointUpgrade.level > 0,
+              isVisible: () => automaticSetpointUpgrade.level > 0,
             }),
             ui.createButton({ text: "Update", onClicked: updatePidValues })
           ]
