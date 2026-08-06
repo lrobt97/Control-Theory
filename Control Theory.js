@@ -631,7 +631,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     kd = stateData.kd !== undefined ? parseFloat(stateData.kd) : 0;
     valve = stateData.valve !== undefined ? parseFloat(stateData.valve) : 0;
     publicationCount = stateData.publicationCount !== undefined ? parseInt(stateData.publicationCount) : 0;
-    r = stateData.r !== undefined ? BigNumber.from(stateData.r) : BigNumber.ZERO;
+    r = stateData.r !== undefined ? BigNumber.from(stateData.r) : BigNumber.ONE;
     autoKickerEnabled = stateData.autoKickerEnabled !== undefined ? stateData.autoKickerEnabled : false;
     cycleEstimate = stateData.cycleEstimate !== undefined ? BigNumber.from(stateData.cycleEstimate) : BigNumber.ZERO;
     setPoint = stateData.setPoint !== undefined ? parseFloat(stateData.setPoint) : 25;
@@ -639,7 +639,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     amplitude = stateData.amplitude !== undefined ? parseFloat(stateData.amplitude) : 125;
     frequency = stateData.frequency !== undefined ? parseFloat(stateData.frequency) : 1;
     maximumPublicationTdot = stateData.maximumPublicationTdot !== undefined ? BigNumber.from(stateData.maximumPublicationTdot) : BigNumber.ZERO;
-    P = stateData.P !== undefined ? BigNumber.from(stateData.P) : BigNumber.ZERO;
+    P = stateData.P !== undefined ? BigNumber.from(stateData.P) : BigNumber.ONE;
     presets = stateData.presets !== undefined ? [...stateData.presets] : [...defaultPresets];
     pTargetTemperature = stateData.pTargetTemperature !== undefined ? parseFloat(stateData.pTargetTemperature) : 100;
     automaticSetpointEnabled = stateData.automaticSetpointEnabled !== undefined ? stateData.automaticSetpointEnabled : false;
@@ -652,7 +652,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
       kd = 0;
       valve = 0;
       publicationCount = 0;
-      r = BigNumber.ZERO;
+      r = BigNumber.ONE;
       autoKickerEnabled = false;
       cycleEstimate = BigNumber.ZERO;
       setPoint = 25;
@@ -660,7 +660,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
       amplitude = 125;
       frequency = 1;
       maximumPublicationTdot = BigNumber.ZERO;
-      P = BigNumber.ZERO;
+      P = BigNumber.ONE;
       presets = [...defaultPresets];
       pTargetTemperature =100;
       automaticSetpointEnabled = false;
