@@ -6,12 +6,13 @@ import { Utils } from "../api/Utils";
 import { TouchType } from "../api/UI/properties/TouchType";
 import { json } from "stream/consumers";
 import { ui } from "../api/UI"; // Ensure the UI module is imported
+import { get } from "http";
 var id = "temperature_control";
 var name = "Temperature Control";
 var description =
   "Control Theory is a tool used in engineering to maintain a variable at a set value (known as the 'set point'). \n  \
   \n \
-You must regulate a 2×2×2 cm metal block using a variable output heater with a maximum power rating of 20 kW. \n \
+You must regulate a 2×2×2 cm metal block using a variable output heater with a maximum power rating of 20 W. \n \
 \n \
 The output of your PID system will be an integer between 0-512 (denoted by u(t) in the equation). This number will determine the output of the heater with 512 providing the maximum value \n \
 \n \
@@ -27,7 +28,7 @@ Q = 20 max heat duty in W \n \
   mass = 10 grams "
 
 var authors = "Gaunter#1337, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
-var version = "2.1.3";
+var version = "2.2";
 var publicationExponent = 0.4;
 var achievements;
 requiresGameVersion("1.4.29");
@@ -67,6 +68,7 @@ ki = 0;
 kd = 0;
 amplitude = 125;
 autoKickerEnabled = false;
+automaticSetpointEnabled = false;
 frequency = 1.2;
 presets = [];
 C1Base = 2.75;
@@ -100,19 +102,18 @@ var initialiseSystem = () => {
   baseTolerance = 5;
   achievementMultiplier = 1;
   maximumPublicationTdot = BigNumber.ZERO;
-  if (presets.length == 0) {
-    presets = Array.from({ length: 3 }, (_, i) => ({
-      T: 5,
-      kp: 0,
-      ki: 0,
-      kd: 0,
-      setPoint: 30,
-      autoKickerEnabled: false,
-      amplitude: 125,
-      frequency: 1.2,
-      name: "Preset " + (i + 1),
-    }));
-  }
+  defaultPresets = Array.from({ length: 3 }, (_, i) => ({
+    T: 5,
+    kp: 0,
+    ki: 0,
+    kd: 0,
+    setPoint: 30,
+    autoKickerEnabled: false,
+    amplitude: 125,
+    frequency: 1.2,
+    name: "Preset " + (i + 1),
+  }));
+  if (presets.length === 0) presets = [...defaultPresets];
 }
 
 const displayPresetMenu = () => {
@@ -162,6 +163,7 @@ const displayPresetMenu = () => {
                   log("Frequency: " + presets[i].frequency);
                   frequency = presets[i].frequency;
                   autoKickerEnabled = presets[i].autoKickerEnabled;
+                  automaticSetpointEnabled = presets[i].automaticSetpointEnabled;
                 }
               },
               row: 0,
@@ -206,7 +208,7 @@ const displayPresetMenu = () => {
 var c1, r1, r2, c2, kickT, tDotExponent, presetMenu, unlockPresetMenu;
 
 // Permanent upgrades
-var changePidValues, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade, achievementMultiplierUpgrade;
+var changePidValues, rExponent, r1Exponent, r2Exponent, c1BaseUpgrade, achievementMultiplierUpgrade, automaticSetpointUpgrade;
 
 // Milestones
 var autoKick, unlockKi, unlockKd, c1Exponent,  unlockC2, improvePFormula;
@@ -254,7 +256,7 @@ var init = () => {
     theory.createAchievement(15, achievement_category5, "You can upgrade that?", "Have ρ exceed 1e535 without purchasing a T dot exponent upgrade.", () => (rho.value > BigNumber.TEN.pow(535) && tDotExponent.level == 0)),
     theory.createAchievement(16, achievement_category5, "Does 'r' actually do anything?", "Have ρ exceed 1e210 while r is still 1.", () => (rho.value > BigNumber.from(1e210) && r == BigNumber.ONE)),
     theory.createAchievement(19, achievement_category5, "Optimisation Challenge 2", "Have ρ exceed 1e160 with only 1 upgrade purchased.", () => (rho.value > BigNumber.from(1e160) && (c1.level + r1.level + r2.level + c2.level + tDotExponent.level) <= 1)),
-  ];
+];
 
   /////////////////////
   // Milestone Upgrades
@@ -307,7 +309,7 @@ var init = () => {
     improvePFormula = theory.createMilestoneUpgrade(7, 2);
     improvePFormula.maxLevel = 2;
     improvePFormula.getDescription = (_) => `Improve $\\dot{P}$ formula`;
-    improvePFormula.getInfo = (_) => `$\\dot{P} = p_1 p_2 e^{${(-3 * Math.pow(0.03, improvePFormula.level)).toPrecision(4)} |T-${pTargetTemperature}|}$`;
+    improvePFormula.getInfo = (_) => `$\\dot{P} = p_1 p_2 e^{${(-0.2 * Math.pow(0.08, improvePFormula.level + 1)).toPrecision(4)} |T-${pTargetTemperature}|}$`;
     improvePFormula.boughtOrRefunded = (_) => { updateAvailability(); theory.invalidatePrimaryEquation(); };
   }
 
@@ -386,6 +388,15 @@ var init = () => {
       presetMenu.isAvailable = unlockPresetMenu.level > 0;
      }
   }
+
+  {
+    automaticSetpointUpgrade = theory.createPermanentUpgrade(6, rho, new CustomCost(_ => BigNumber.TEN.pow(1000)));
+    automaticSetpointUpgrade.maxLevel = 1;
+    automaticSetpointUpgrade.getDescription = (_) => "Automatic set point";
+    automaticSetpointUpgrade.getInfo = (_) => "Automatically sets $T_s$ to the target temperature for P.";
+    automaticSetpointUpgrade.isAvailable = calculateAchievementMultiplier() >= 30;
+  }
+
   /////////////////////
   // Upgrades
 
@@ -562,7 +573,6 @@ The End \n \
 (You have unlocked a new upgrade.) \
 "
 theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calculateAchievementMultiplier() >= 30);
-{
   // Internal
   var updateAvailability = () => {
     kickT.isAvailable = autoKick.level == 0;
@@ -580,32 +590,81 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     improvePFormula.isAvailable = calculateAchievementMultiplier() >= 30;
     unlockPresetMenu.isAvailable = changePidValues.level > 0;
     presetMenu.isAvailable = unlockPresetMenu.level > 0;
+    automaticSetpointUpgrade.isAvailable = calculateAchievementMultiplier() >= 30;
   }
 
-  var getInternalState = () => 
-    `${T.toString()}|${error[0].toString()}|${integral.toString()}|${kp.toString()}|${ki.toString()}|${kd.toString()}|${valve.toString()}|${publicationCount.toString()}|${r}|${autoKickerEnabled}|${cycleEstimate}|${setPoint}|${rEstimate}|${amplitude}|${frequency}|${maximumPublicationTdot}|${P}|${JSON.stringify(presets)}`;
+  var getInternalState = () => {
+    let state = {
+      T: T.toString(),
+      error: error[0].toString(),
+      integral: integral.toString(),
+      kp: kp.toString(),
+      ki: ki.toString(),
+      kd: kd.toString(),
+      valve: valve.toString(),
+      publicationCount: publicationCount.toString(),
+      r: r.toString(),
+      autoKickerEnabled: autoKickerEnabled,
+      cycleEstimate: cycleEstimate.toString(),
+      setPoint: setPoint.toString(),
+      rEstimate: rEstimate.toString(),
+      amplitude: amplitude.toString(),
+      frequency: frequency.toString(),
+      maximumPublicationTdot: maximumPublicationTdot.toString(),
+      P: P.toString(),
+      presets: presets,
+      pTargetTemperature: pTargetTemperature.toString(),
+      automaticSetpointEnabled: automaticSetpointEnabled
+    };
+
+    return JSON.stringify(state);
+  }
 
   var setInternalState = (state) => {
-    debug = state;
-    let values = state.split("|");
-    if (values.length > 0) T = parseFloat(values[0]);
-    if (values.length > 1) error[0] = parseFloat(values[1]);
-    if (values.length > 2) integral = parseFloat(values[2]);
-    if (values.length > 3) kp = parseFloat(values[3]);
-    if (values.length > 4) ki = parseFloat(values[4]);
-    if (values.length > 5) kd = parseFloat(values[5]);
-    if (values.length > 6) valve = parseFloat(values[6]);
-    if (values.length > 7) publicationCount = parseFloat(values[7]);
-    if (values.length > 8) r = parseBigNumber(values[8]);
-    if (values.length > 9) autoKickerEnabled = values[9] == "true";
-    if (values.length > 10) cycleEstimate = parseBigNumber(values[10]);
-    if (values.length > 11) setPoint = parseFloat(values[11]);
-    if (values.length > 12) rEstimate = parseBigNumber(values[12]);
-    if (values.length > 13) amplitude = parseFloat(values[13]);
-    if (values.length > 14) frequency = parseFloat(values[14]);
-    if (values.length > 15) maximumPublicationTdot = parseBigNumber(values[15]);
-    if (values.length > 16) P = parseBigNumber(values[16]);
-    if (values.length > 17) presets = JSON.parse(values[17]);
+    try {
+    stateData = JSON.parse(state);
+    T = stateData.T !== undefined ? BigNumber.from(stateData.T) : BigNumber.from(30);
+    error[0] = stateData.error !== undefined ? parseFloat(stateData.error) : 0;
+    integral = stateData.integral !== undefined ? parseFloat(stateData.integral) : 0;
+    kp = stateData.kp !== undefined ? parseFloat(stateData.kp) : 5;
+    ki = stateData.ki !== undefined ? parseFloat(stateData.ki) : 0;
+    kd = stateData.kd !== undefined ? parseFloat(stateData.kd) : 0;
+    valve = stateData.valve !== undefined ? parseFloat(stateData.valve) : 0;
+    publicationCount = stateData.publicationCount !== undefined ? parseInt(stateData.publicationCount) : 0;
+    r = stateData.r !== undefined ? BigNumber.from(stateData.r) : BigNumber.ONE;
+    autoKickerEnabled = stateData.autoKickerEnabled !== undefined ? stateData.autoKickerEnabled : false;
+    cycleEstimate = stateData.cycleEstimate !== undefined ? BigNumber.from(stateData.cycleEstimate) : BigNumber.ZERO;
+    setPoint = stateData.setPoint !== undefined ? parseFloat(stateData.setPoint) : 25;
+    rEstimate = stateData.rEstimate !== undefined ? BigNumber.from(stateData.rEstimate) : BigNumber.ZERO;
+    amplitude = stateData.amplitude !== undefined ? parseFloat(stateData.amplitude) : 125;
+    frequency = stateData.frequency !== undefined ? parseFloat(stateData.frequency) : 1;
+    maximumPublicationTdot = stateData.maximumPublicationTdot !== undefined ? BigNumber.from(stateData.maximumPublicationTdot) : BigNumber.ZERO;
+    P = stateData.P !== undefined ? BigNumber.from(stateData.P) : BigNumber.ONE;
+    presets = stateData.presets !== undefined ? [...stateData.presets] : [...defaultPresets];
+    pTargetTemperature = stateData.pTargetTemperature !== undefined ? parseFloat(stateData.pTargetTemperature) : 100;
+    automaticSetpointEnabled = stateData.automaticSetpointEnabled !== undefined ? stateData.automaticSetpointEnabled : false;
+    } catch (e) {
+      T = BigNumber.from(30);
+      error[0] = 0;
+      integral = 0;
+      kp = 5;
+      ki = 0;
+      kd = 0;
+      valve = 0;
+      publicationCount = 0;
+      r = BigNumber.ONE;
+      autoKickerEnabled = false;
+      cycleEstimate = BigNumber.ZERO;
+      setPoint = 25;
+      rEstimate = BigNumber.ZERO;
+      amplitude = 125;
+      frequency = 1;
+      maximumPublicationTdot = BigNumber.ZERO;
+      P = BigNumber.ONE;
+      presets = [...defaultPresets];
+      pTargetTemperature =100;
+      automaticSetpointEnabled = false;
+    }
   }
 
   var updatePidValues = () => {
@@ -746,6 +805,27 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     return menu;
   }
   const viewPIDInfoMenu = () => {
+    const systemConstantMenu = () => {
+      return ui.createPopup({
+        title: "System Constants",
+        content: 
+        ui.createStackLayout({
+          children: [
+            ui.createLatexLabel({
+              horizontalTextAlignment: TextAlignment.START,
+              text: Utils.getMath("\
+              Q = 20 \\text{ W } \\text{max heating power} \\\\ \
+              h = 5 \\text{ W } \\text{m}^{-2} \\text{ K}^{-1} \\text{ thermal conductivity for Al} \\\\ \
+              C_p = 0.89 \\text{ J } \\text{g}^{-1} \\text{ K}^{-1} \\text{ specific heat capacity of Al} \\\\ \
+              A = 0.024 \\text{ m}^2 \\text{ surface area of the system} \\\\ \
+              m = 10 \\text{ g} \\text{ mass of the system} \\\\ \
+              ")
+            }),
+          ]
+        })
+      })
+    }
+
     let menu = ui.createPopup({
       title: "PID Menu Guide",
       content:
@@ -753,22 +833,38 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
           content:
           ui.createStackLayout({
             children: [
-              ui.createLabel({
+              ui.createLatexLabel({
                 horizontalTextAlignment: TextAlignment.START,
-                text: "\
-              This menu is used to tweak the parameters of the PID controller - a mechanism that can automatically adjust the temperature to a given value (known as the setpoint).\n \
-              \n \
-              This guide serves as an explanation for how the tuning parameters affect the main system. Each cycle, the controller measures the error term, e(t), and uses it in the below equation. Because this measurement only happens in discrete time intervals, the measurements are stored in the sequence e_n. \n \
-              The output of the equation is converted into an integer between 0 and 512. This means any negative values are capped at 0 and the upper limit is capped at 512. This output is used within the main equation of the system.\n \
-              \n \
-              K_p: This refers to the proportional gain. The output of this term scales in proportion to the measured error. Only using this term results in permament offset, which causes the controller to stop even though it hasn't hit the setpoint. If this is set too high, the controller becomes more aggresive which means it overreacts to any small deviation.\n  \
-              \n \
-              K_i: This refers to the integral gain. This term allows the controller to calculate the sum of the previous errors and adjust the output to attempt to minimise them. This operation prevents the offset mentioned above, however setting the value too high can cause oscillations due to windup.\n \
-              \n \
-              K_d: This refers to the differential gain. This term measures the rate of change in the error and attempts to adjust the output to minimise future errors. This can prevent overshoot, which allows T to settle at the setpoint without moving too far beyond. However, setting this term too high can lead to oscillations and instablity.\n \
-              \n \
-              T_s: This refers to the setpoint. The controller will try to manipulate the temperature towards this value. \
-                "
+                text: Utils.getMath("\
+                T_{s}:= \\text{ the set point temperature, \\\\ \
+                the system will try to stabilise at this value} \\\\ \
+                \\\\ \
+                T:=  \\text{ the current temperature} \\\\ \
+                \\\\ \
+                e_n:=  \\text{ the current error} \\\\ \
+                \\\\ \
+                e_i:=  \\text{ the error at time step } i \\\\ \
+                \\\\ \
+                u(t):=  \\text{ the control signal, ranges from 0-512} \\\\ \
+                \\\\ \
+                K_p:=  \\text{ the proportional gain, \\\\ \
+                increases the control signal in proportion \\\\ \
+                to the error} \\\\ \
+                \\\\ \
+                K_i:=  \\text{ the integral gain, \\\\ \
+                increases the control signal in proportion \\\\  \
+                to the accumulated error} \\\\ \
+                \\\\ \
+                K_d:=  \\text{ the derivative gain, \\\\ \
+                increases the control signal in proportion \\\\ \
+                to the rate of change of the error}")
+              }),
+              ui.createButton({
+                text: "System Constants",
+                onClicked: () => {
+                  let systemConstantsMenu = systemConstantMenu();
+                  systemConstantsMenu.show();
+                }
               })
             ]
           })
@@ -779,13 +875,16 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
 
     return menu;
   }
+
   const createPidMenu = () => {
     let kpText = "{K}_{p} = ";
     let tiText = "{K}_{i} = ";
     let tdText = "{K}_{d} = ";
     let setPointText = "{T}_{s} = "
+    let autoSetpointText = "Enable Automatic Set Point: ";
     let kpTextLabel, kiTextLabel, kdTextLabel, setPointTextLabel;
     let kpSlider, kiSlider, kdSlider, setPointSlider;
+    let autoSetpointSwitch, autoSetpointLabel;
     let menu = ui.createPopup({
       title: "Configure PID",
       content: 
@@ -824,13 +923,14 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
             }),
             kiTextLabel = ui.createLatexLabel({ text: Utils.getMath(tiText + ki.toString()) }),
             kiSlider = ui.createSlider({
-              value: ki,
+              value: ki > 0 ? Math.log10(ki) : -2,
               isVisible: () => unlockKi.level > 0,
-              minimum: 0,
-              maximum: 50,
+              minimum: -5,
+              maximum: 2,
               onValueChanged: () => {
-                kiTextLabel.text = Utils.getMath(tiText + kiSlider.value.toPrecision(2).toString());
-                newKi = kiSlider.value;
+                const kiValue = Math.pow(10, kiSlider.value);
+                kiTextLabel.text = Utils.getMath(tiText + kiValue.toPrecision(2).toString());
+                newKi = kiValue;
               },
             }),
             kdTextLabel = ui.createLatexLabel({ text: Utils.getMath(tdText + kd.toString()) }),
@@ -847,9 +947,30 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
             setPointTextLabel = ui.createLatexLabel({ text: Utils.getMath(setPointText + setPoint.toPrecision(3)) }),
             setPointSlider = ui.createSlider({
               onValueChanged: () => {
+                newSetPoint = automaticSetpointEnabled ? pTargetTemperature : setPointSlider.value;
+                setPointSlider.value = newSetPoint;
                 setPointTextLabel.text = Utils.getMath(setPointText + setPointSlider.value.toPrecision(3));
-                newSetPoint = setPointSlider.value;
               },
+            }),
+            autoSetpointLabel = ui.createLabel({ 
+              text: autoSetpointText,
+              horizontalTextAlignment: TextAlignment.START,
+              verticalTextAlignment: TextAlignment.CENTER,
+              isVisible: () => automaticSetpointUpgrade.level > 0,
+            }),
+            autoSetpointSwitch = ui.createSwitch({
+              isToggled: () => automaticSetpointEnabled,
+              onTouched: (e) => { 
+                if (e.type == TouchType.PRESSED) {
+                  automaticSetpointEnabled = !automaticSetpointEnabled
+                  if (automaticSetpointEnabled) {
+                    newSetPoint = pTargetTemperature;
+                    log("Automatic set point enabled. Set point is now " + newSetPoint);
+                    setPointSlider.value = newSetPoint;
+                    setPointTextLabel.text = Utils.getMath(setPointText + setPointSlider.value.toPrecision(3));
+                  }
+                }},
+              isVisible: () => automaticSetpointUpgrade.level > 0,
             }),
             ui.createButton({ text: "Update", onClicked: updatePidValues })
           ]
@@ -875,6 +996,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
   };
 
   var tick = (elapsedTime, multiplier) => {
+    if (automaticSetpointEnabled) setPoint = pTargetTemperature;
     let dt = BigNumber.from(elapsedTime * multiplier);
     let bonus = theory.publicationMultiplier;
     achievementMultiplier = calculateAchievementMultiplier();
@@ -931,7 +1053,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     theory.invalidateSecondaryEquation();
     theory.invalidateTertiaryEquation();
   }
-}
+
 
 
 {
@@ -1017,13 +1139,39 @@ var calculateAchievementMultiplier = () => {
   }
   return Math.pow(30, 1 / 18 * count);
 }
+
+/**
+ * Simulates a 16-bit LFSR with 16 internal clock cycles per output.
+ * @param {number} seed - The input value 
+ * @returns {number} A random float between 0 and 1
+ */
+function lfsr16BitScrambled(seed) {
+    // Map input to 16-bit space (0 to 65535) and ensure non-zero
+    let state = (seed % 65536) || 1;
+
+    // Clock 16 times to completely roll over the 16-bit register
+    for (let i = 0; i < 16; i++) {
+        if (state & 1) {
+            // Shift right and XOR with 16-bit polynomial 0xB400
+            state = (state >> 1) ^ 0xB400;
+        } else {
+            state = state >> 1;
+        }
+    }
+
+    // Scale to a float between 0 and 1 (divide by max 16-bit value)
+    return state / 65535;
+}
+
 var postPublish = () => {
   initialiseSystem();
   theory.invalidatePrimaryEquation();
   theory.invalidateSecondaryEquation();
   theory.invalidateTertiaryEquation();
+  seed = Math.round(theory.tau.log10())
+  rng = lfsr16BitScrambled(seed);
+  pTargetTemperature = parseFloat(Math.round(rng * (120 - 60) + 60));
   publicationCount++;
 }
 
 init();
-
