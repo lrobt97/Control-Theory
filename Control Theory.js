@@ -7,6 +7,7 @@ import { TouchType } from "../api/UI/properties/TouchType";
 import { json } from "stream/consumers";
 import { ui } from "../api/UI"; // Ensure the UI module is imported
 import { get } from "http";
+import { Keyboard } from '../api/ui/properties/Keyboard';
 var id = "temperature_control";
 var name = "Temperature Control";
 var description =
@@ -109,6 +110,7 @@ var initialiseSystem = () => {
     kd: 0,
     setPoint: 30,
     autoKickerEnabled: false,
+    automaticSetpointEnabled: false,
     amplitude: 125,
     frequency: 1.2,
     name: "Preset " + (i + 1),
@@ -145,6 +147,7 @@ const displayPresetMenu = () => {
                   amplitude: parseFloat(amplitude.toFixed(2)),
                   frequency: parseFloat(frequency.toFixed(2)),
                   autoKickerEnabled: autoKickerEnabled,
+                  automaticSetpointEnabled: automaticSetpointEnabled,
                 };
               },
               row: 0,
@@ -631,7 +634,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     kd = stateData.kd !== undefined ? parseFloat(stateData.kd) : 0;
     valve = stateData.valve !== undefined ? parseFloat(stateData.valve) : 0;
     publicationCount = stateData.publicationCount !== undefined ? parseInt(stateData.publicationCount) : 0;
-    r = stateData.r !== undefined ? BigNumber.from(stateData.r) : BigNumber.ONE;
+    r = stateData.r !== undefined ? BigNumber.from(stateData.r) : BigNumber.ZERO;
     autoKickerEnabled = stateData.autoKickerEnabled !== undefined ? stateData.autoKickerEnabled : false;
     cycleEstimate = stateData.cycleEstimate !== undefined ? BigNumber.from(stateData.cycleEstimate) : BigNumber.ZERO;
     setPoint = stateData.setPoint !== undefined ? parseFloat(stateData.setPoint) : 25;
@@ -639,7 +642,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     amplitude = stateData.amplitude !== undefined ? parseFloat(stateData.amplitude) : 125;
     frequency = stateData.frequency !== undefined ? parseFloat(stateData.frequency) : 1;
     maximumPublicationTdot = stateData.maximumPublicationTdot !== undefined ? BigNumber.from(stateData.maximumPublicationTdot) : BigNumber.ZERO;
-    P = stateData.P !== undefined ? BigNumber.from(stateData.P) : BigNumber.ONE;
+    P = stateData.P !== undefined ? BigNumber.from(stateData.P) : BigNumber.ZERO;
     presets = stateData.presets !== undefined ? [...stateData.presets] : [...defaultPresets];
     pTargetTemperature = stateData.pTargetTemperature !== undefined ? parseFloat(stateData.pTargetTemperature) : 100;
     automaticSetpointEnabled = stateData.automaticSetpointEnabled !== undefined ? stateData.automaticSetpointEnabled : false;
@@ -652,7 +655,7 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
       kd = 0;
       valve = 0;
       publicationCount = 0;
-      r = BigNumber.ONE;
+      r = BigNumber.ZERO;
       autoKickerEnabled = false;
       cycleEstimate = BigNumber.ZERO;
       setPoint = 25;
@@ -660,25 +663,12 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
       amplitude = 125;
       frequency = 1;
       maximumPublicationTdot = BigNumber.ZERO;
-      P = BigNumber.ONE;
+      P = BigNumber.ZERO;
       presets = [...defaultPresets];
       pTargetTemperature =100;
       automaticSetpointEnabled = false;
     }
   }
-
-  var updatePidValues = () => {
-    kp = newKp;
-    kd = newKd;
-    ki = newKi;
-    setPoint = newSetPoint;
-    theory.invalidateSecondaryEquation();
-  }
-
-  var newKp = kp;
-  var newKi = ki;
-  var newKd = kd;
-  var newSetPoint = setPoint;
 
   // Allows the user to reset post e360 tau for challenge runs
   var canResetStage = () => theory.tau > BigNumber.TEN.pow(360);
@@ -876,14 +866,86 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
     return menu;
   }
 
+  class NumericInputTextField {
+    constructor(labelText, initialValue, min, max) {
+      this.labelText = labelText;
+      this.initialValue = initialValue;
+      this.min = min;
+      this.max = max;
+      this.entry = ui.createEntry({
+        text: this.initialValue.toString(),
+        placeholder: this.initialValue.toString(),
+        keyboard: Keyboard.NUMERIC,
+        horizontalTextAlignment: TextAlignment.CENTER,
+        horizontalOptions: LayoutOptions.CENTER,
+        placeholderColor: Color.TEXT_MEDIUM,
+        widthRequest: 60,
+        row : 0,
+        column: 2,
+        onTextChanged: (ot, nt) => {
+          let value = parseFloat(nt);
+          if (!isNaN(value)) {
+            if (value < this.min) {
+              value = this.min;
+            } else if (value > this.max) {
+              value = this.max;
+            }
+            this.value = value;
+            this.entry.text = value.toString();
+          }
+        }
+      });
+
+      this.stackLayout = ui.createStackLayout({
+        orientation: StackOrientation.HORIZONTAL,
+        horizontalOptions: LayoutOptions.CENTER,
+        children: [
+          ui.createLatexLabel({
+            row: 1,
+            column: 0,
+            fontSize: 12,
+            horizontalTextAlignment: TextAlignment.CENTER,
+            verticalTextAlignment: TextAlignment.CENTER,
+            horizontalOptions: LayoutOptions.CENTER,
+            verticalOptions: LayoutOptions.CENTER,
+            text: Utils.getMath(this.labelText),
+          }),
+          this.entry,
+        ]
+      });
+    }
+
+    getValue() {
+      return this.entry.text ? parseFloat(this.entry.text) : this.initialValue;
+    }
+    getLayout() {
+      return this.stackLayout;
+    }
+  }
+
+  const numericInputTextField = (labelText, initialValue, min, max) => {
+    return new NumericInputTextField(labelText, initialValue, min, max);
+  }
+
+  const updatePidValues = (newKp, newKi, newKd, newSetPoint, newAutoSetpointEnabled) => {
+    log("Updating PID values: Kp = " + newKp + ", Ki = " + newKi + ", Kd = " + newKd + ", Set Point = " + newSetPoint);
+    kp = newKp;
+    kd = newKd;
+    ki = newKi;
+    setPoint = newSetPoint;
+    automaticSetpointEnabled = newAutoSetpointEnabled;
+    theory.invalidateSecondaryEquation();
+  }
+
   const createPidMenu = () => {
     let kpText = "{K}_{p} = ";
     let tiText = "{K}_{i} = ";
     let tdText = "{K}_{d} = ";
     let setPointText = "{T}_{s} = "
     let autoSetpointText = "Enable Automatic Set Point: ";
-    let kpTextLabel, kiTextLabel, kdTextLabel, setPointTextLabel;
-    let kpSlider, kiSlider, kdSlider, setPointSlider;
+    const kpField = numericInputTextField(kpText, kp, 0, 100);
+    const kiField = numericInputTextField(tiText, ki, 0, 100);
+    const kdField = numericInputTextField(tdText, kd, 0, 50);
     let autoSetpointSwitch, autoSetpointLabel;
     let menu = ui.createPopup({
       title: "Configure PID",
@@ -911,40 +973,13 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
                 u(t) = K_p e_n + K_i\\sum_{0}^{n} ( e_i ) + K_d(e_n - e_{n-1}) \
                 \\end{matrix}")
             }),
-            kpTextLabel = ui.createLatexLabel({ text: Utils.getMath(kpText + kp.toString()) }),
-            kpSlider = ui.createSlider({
-              value: Math.log10(kp),
-              minimum: -2,
-              maximum: 2,
-              onValueChanged: () => {
-                kpTextLabel.text = Utils.getMath(kpText + Math.pow(10, kpSlider.value).toPrecision(2).toString());
-                newKp = Math.pow(10, kpSlider.value);
-              },
+            kpField.getLayout(),
+            kiField.getLayout(),
+            kdField.getLayout(),
+            setPointTextLabel = ui.createLatexLabel({ 
+              horizontalTextAlignment: TextAlignment.CENTER,
+              text: Utils.getMath(setPointText + setPoint.toPrecision(3)) 
             }),
-            kiTextLabel = ui.createLatexLabel({ text: Utils.getMath(tiText + ki.toString()) }),
-            kiSlider = ui.createSlider({
-              value: ki > 0 ? Math.log10(ki) : -2,
-              isVisible: () => unlockKi.level > 0,
-              minimum: -5,
-              maximum: 2,
-              onValueChanged: () => {
-                const kiValue = Math.pow(10, kiSlider.value);
-                kiTextLabel.text = Utils.getMath(tiText + kiValue.toPrecision(2).toString());
-                newKi = kiValue;
-              },
-            }),
-            kdTextLabel = ui.createLatexLabel({ text: Utils.getMath(tdText + kd.toString()) }),
-            kdSlider = ui.createSlider({
-              value: kd,
-              isVisible: () => unlockKd.level > 0,
-              minimum: 0,
-              maximum: 50,
-              onValueChanged: () => {
-                kdTextLabel.text = Utils.getMath(tdText + kdSlider.value.toPrecision(2).toString());
-                newKd = kdSlider.value;
-              },
-            }),
-            setPointTextLabel = ui.createLatexLabel({ text: Utils.getMath(setPointText + setPoint.toPrecision(3)) }),
             setPointSlider = ui.createSlider({
               onValueChanged: () => {
                 newSetPoint = automaticSetpointEnabled ? pTargetTemperature : setPointSlider.value;
@@ -965,14 +1000,13 @@ theory.createStoryChapter(10, "Master of Control", storychaper_10, () => calcula
                   automaticSetpointEnabled = !automaticSetpointEnabled
                   if (automaticSetpointEnabled) {
                     newSetPoint = pTargetTemperature;
-                    log("Automatic set point enabled. Set point is now " + newSetPoint);
                     setPointSlider.value = newSetPoint;
                     setPointTextLabel.text = Utils.getMath(setPointText + setPointSlider.value.toPrecision(3));
                   }
                 }},
-              isVisible: () => automaticSetpointUpgrade.level > 0,
+            isVisible: () => automaticSetpointUpgrade.level > 0,
             }),
-            ui.createButton({ text: "Update", onClicked: updatePidValues })
+            ui.createButton({ text: "Update", onClicked: () => updatePidValues(kpField.getValue(), kiField.getValue(), kdField.getValue(), setPointSlider.value, autoSetpointSwitch.isToggled) })
           ]
         })
     })
