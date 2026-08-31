@@ -30,7 +30,7 @@ Q = 20 max heat duty in W \n \
 
 var authors = "Gaunter#1337, peanut#6368 - developed the theory \n XLII#0042, SnaekySnacks#1161 - developed the sim and helped balancing";
 var version = "2.2";
-var publicationExponent = 0.4;
+var publicationExponent = 0.45;
 var achievements;
 requiresGameVersion("1.4.29");
 
